@@ -1,0 +1,300 @@
+# MCP Usage
+
+This project exposes the generated Pozsar corpus as a read-only stdio MCP server.
+
+Build or refresh the corpus first:
+
+```bash
+cargo run -p corpus-cli -- build --docs docs --out data/knowledge
+cargo run -p corpus-cli -- inspect --out data/knowledge
+```
+
+Then build the MCP binary:
+
+```bash
+cargo build --release -p pozsar-mcp
+```
+
+The server reads chunks from `data/knowledge/chunks/pozsar_chunks.jsonl` by default. Use `POZSAR_CHUNKS_JSONL` to point it at another artifact:
+
+```bash
+POZSAR_CHUNKS_JSONL=/absolute/path/to/pozsar_chunks.jsonl \
+  /absolute/path/to/zp_base/target/release/pozsar-mcp
+```
+
+Use absolute paths in MCP client config files. Relative paths depend on the client process working directory and are easy to misconfigure.
+
+## Claude Desktop
+
+Add the server to Claude Desktop's MCP config.
+
+Common config locations:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Example:
+
+```json
+{
+  "mcpServers": {
+    "pozsar-corpus": {
+      "command": "/absolute/path/to/zp_base/target/release/pozsar-mcp",
+      "env": {
+        "POZSAR_CHUNKS_JSONL": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop after editing the config.
+
+## Codex
+
+Codex supports stdio MCP servers through `config.toml`. You can use the CLI or edit config directly.
+
+CLI form:
+
+```bash
+codex mcp add pozsar-corpus \
+  --env POZSAR_CHUNKS_JSONL=/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl \
+  -- /absolute/path/to/zp_base/target/release/pozsar-mcp
+```
+
+Config form, either in `~/.codex/config.toml` or project-scoped `.codex/config.toml` for a trusted project:
+
+```toml
+[mcp_servers.pozsar_corpus]
+command = "/absolute/path/to/zp_base/target/release/pozsar-mcp"
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+enabled = true
+
+[mcp_servers.pozsar_corpus.env]
+POZSAR_CHUNKS_JSONL = "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
+```
+
+In the Codex TUI, use `/mcp` to inspect configured MCP servers.
+
+Development alternative:
+
+```toml
+[mcp_servers.pozsar_corpus_dev]
+command = "cargo"
+args = ["run", "--quiet", "-p", "pozsar-mcp"]
+cwd = "/absolute/path/to/zp_base"
+startup_timeout_sec = 30
+tool_timeout_sec = 60
+enabled = true
+
+[mcp_servers.pozsar_corpus_dev.env]
+POZSAR_CHUNKS_JSONL = "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
+```
+
+Prefer the release binary for normal use because it avoids compile-time startup delays.
+
+## Tools
+
+All tools are read-only.
+
+### `list_pozsar_docs`
+
+Lists documents represented in the chunk artifact.
+
+Input:
+
+```json
+{}
+```
+
+Output:
+
+```json
+[
+  {
+    "doc_id": "bretton-woods-iii-zoltan-pozsar",
+    "file_name": "Bretton-Woods-III-Zoltan-Pozsar.pdf",
+    "chunks": 12
+  }
+]
+```
+
+### `list_pozsar_themes`
+
+Lists deterministic themes present in the corpus.
+
+Input:
+
+```json
+{}
+```
+
+Output:
+
+```json
+[
+  "collateral",
+  "commodities",
+  "dollar_liquidity",
+  "fx_swaps",
+  "repo",
+  "shadow_banking"
+]
+```
+
+### `search_pozsar_kb`
+
+Searches source-cited corpus chunks.
+
+Input:
+
+```json
+{
+  "query": "collateral dollar liquidity",
+  "limit": 5,
+  "theme": "collateral",
+  "doc_id": "bretton-woods-iii-zoltan-pozsar",
+  "file_name": "Bretton-Woods-III-Zoltan-Pozsar.pdf",
+  "page": 1
+}
+```
+
+Parameters:
+
+- `query` required string.
+- `limit` optional integer, clamped to `1..=10`, default `5`.
+- `theme` optional string, exact theme match, case-insensitive.
+- `doc_id` optional string, exact match.
+- `file_name` optional string, exact match, case-insensitive.
+- `page` optional integer, exact match.
+
+Filters combine with AND semantics. Omit filters to search the whole corpus.
+
+Output:
+
+```json
+[
+  {
+    "doc_id": "bretton-woods-iii-zoltan-pozsar",
+    "file_name": "Bretton-Woods-III-Zoltan-Pozsar.pdf",
+    "page": 1,
+    "chunk_index": 0,
+    "themes": ["collateral", "dollar_liquidity"],
+    "text": "Chunk text...",
+    "citation": "Bretton-Woods-III-Zoltan-Pozsar.pdf:1"
+  }
+]
+```
+
+Example queries:
+
+```json
+{"query": "repo balance sheet constraints", "limit": 5}
+```
+
+```json
+{"query": "Bretton Woods III commodities", "theme": "commodities", "limit": 3}
+```
+
+```json
+{"query": "dollar liquidity", "doc_id": "safe-asset-glut", "limit": 5}
+```
+
+### `explain_pozsar_search`
+
+Runs the same search path as `search_pozsar_kb`, but returns scoring details.
+
+Input: same as `search_pozsar_kb`.
+
+Output:
+
+```json
+[
+  {
+    "passage": {
+      "doc_id": "bretton-woods-iii-zoltan-pozsar",
+      "file_name": "Bretton-Woods-III-Zoltan-Pozsar.pdf",
+      "page": 1,
+      "chunk_index": 0,
+      "themes": ["commodities", "dollar_liquidity"],
+      "text": "Chunk text...",
+      "citation": "Bretton-Woods-III-Zoltan-Pozsar.pdf:1"
+    },
+    "score": 137,
+    "phrase_hits": ["text:dollar liquidity"],
+    "term_hits": [
+      {
+        "term": "dollar",
+        "text_count": 2,
+        "title_count": 0,
+        "theme_count": 1,
+        "citation_count": 0
+      }
+    ],
+    "title_boosts": [],
+    "theme_boosts": ["theme:dollar"],
+    "citation_boosts": [],
+    "duplicate_citation": false,
+    "citation": "Bretton-Woods-III-Zoltan-Pozsar.pdf:1"
+  }
+]
+```
+
+Use this tool when ranking looks surprising or when tuning the search layer.
+
+### `read_pozsar_source`
+
+Reads all chunks for one exact document page.
+
+Input:
+
+```json
+{
+  "doc_id": "bretton-woods-iii-zoltan-pozsar",
+  "page": 1
+}
+```
+
+Output: array of `SourceCitedPassage` objects, same shape as `search_pozsar_kb`.
+
+### `read_pozsar_page_context`
+
+Reads neighboring page chunks around a source page.
+
+Input:
+
+```json
+{
+  "doc_id": "bretton-woods-iii-zoltan-pozsar",
+  "page": 10,
+  "radius": 1
+}
+```
+
+Parameters:
+
+- `doc_id` required string.
+- `page` required integer.
+- `radius` optional integer, default `1`, clamped to max `5`.
+
+Output: array of `SourceCitedPassage` objects sorted by page, then chunk index.
+
+Use this after `search_pozsar_kb` finds a relevant page and you need surrounding source context.
+
+## Troubleshooting
+
+If the MCP client starts but tools return empty arrays:
+
+1. Confirm PDFs exist under `docs/`.
+2. Rebuild artifacts with `corpus-cli build`.
+3. Run `corpus-cli inspect` and verify `validation_issues: 0`.
+4. Confirm `POZSAR_CHUNKS_JSONL` points to the intended `pozsar_chunks.jsonl`.
+5. Restart the MCP client after changing config.
+
+If the MCP client cannot start the server:
+
+1. Use an absolute path to `target/release/pozsar-mcp`.
+2. Run the binary manually from a terminal and check for errors.
+3. Increase `startup_timeout_sec` for Codex or equivalent startup timeout in the client.
+4. Prefer the release binary over `cargo run` for configured clients.
