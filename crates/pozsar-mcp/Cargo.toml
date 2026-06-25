@@ -1,0 +1,16 @@
+[package]
+name = "pozsar-mcp"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+pozsar-kb = { path = "../pozsar-kb" }
+rmcp = { workspace = true, features = ["transport-io"] }
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
