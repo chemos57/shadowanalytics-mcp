@@ -73,9 +73,13 @@ Available MCP tools:
 - `list_pozsar_docs`
 - `list_pozsar_themes`
 - `search_pozsar_kb`
+- `explain_pozsar_search`
 - `read_pozsar_source`
+- `read_pozsar_page_context`
 
 Search results include citations in `file_name:page` format.
+
+For Claude Desktop and Codex configuration examples, tool parameters, and response shapes, see [docs/MCP.md](docs/MCP.md).
 
 ## Development Checks
 

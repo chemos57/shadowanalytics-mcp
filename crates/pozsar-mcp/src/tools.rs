@@ -1,3 +1,7 @@
+use crate::search::{
+    explain_search_chunks_with_filters, read_page_context, search_chunks_with_filters,
+    SearchFilters,
+};
 use anyhow::{Context, Result};
 use pozsar_kb::chunk::KnowledgeChunk;
 use rmcp::{
@@ -6,7 +10,6 @@ use rmcp::{
     schemars, tool, tool_handler, tool_router, ServerHandler,
 };
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
@@ -31,12 +34,23 @@ impl PozsarCorpusMcp {
 pub struct SearchPozsarParams {
     pub query: String,
     pub limit: Option<u64>,
+    pub theme: Option<String>,
+    pub doc_id: Option<String>,
+    pub file_name: Option<String>,
+    pub page: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ReadSourceParams {
     pub doc_id: String,
     pub page: u32,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ReadPageContextParams {
+    pub doc_id: String,
+    pub page: u32,
+    pub radius: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,7 +60,7 @@ pub struct CorpusDocument {
     pub chunks: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceCitedPassage {
     pub doc_id: String,
     pub file_name: String,
@@ -88,10 +102,29 @@ impl PozsarCorpusMcp {
         description = "Search the Pozsar corpus and return source-cited passages with file name and page. Read-only."
     )]
     pub fn search_pozsar_kb(&self, Parameters(params): Parameters<SearchPozsarParams>) -> String {
-        let passages = search_chunks(
+        let filters = search_filters_from_params(&params);
+        let passages = search_chunks_with_filters(
             &self.chunks,
             &params.query,
             params.limit.unwrap_or(5).clamp(1, 10) as usize,
+            &filters,
+        );
+        serde_json::to_string_pretty(&passages).unwrap()
+    }
+
+    #[tool(
+        description = "Search the Pozsar corpus and return source-cited passages with scoring explanations. Read-only."
+    )]
+    pub fn explain_pozsar_search(
+        &self,
+        Parameters(params): Parameters<SearchPozsarParams>,
+    ) -> String {
+        let filters = search_filters_from_params(&params);
+        let passages = explain_search_chunks_with_filters(
+            &self.chunks,
+            &params.query,
+            params.limit.unwrap_or(5).clamp(1, 10) as usize,
+            &filters,
         );
         serde_json::to_string_pretty(&passages).unwrap()
     }
@@ -104,6 +137,17 @@ impl PozsarCorpusMcp {
             .filter(|chunk| chunk.doc_id == params.doc_id && chunk.page == params.page)
             .map(source_cited_passage)
             .collect();
+        serde_json::to_string_pretty(&passages).unwrap()
+    }
+
+    #[tool(
+        description = "Read source-cited chunks around one document page, including neighboring pages. Read-only."
+    )]
+    pub fn read_pozsar_page_context(
+        &self,
+        Parameters(params): Parameters<ReadPageContextParams>,
+    ) -> String {
+        let passages = read_page_context(&self.chunks, &params.doc_id, params.page, params.radius);
         serde_json::to_string_pretty(&passages).unwrap()
     }
 }
@@ -134,50 +178,7 @@ pub fn load_chunks_jsonl(path: &Path) -> Result<Vec<KnowledgeChunk>> {
         .collect()
 }
 
-pub fn search_chunks(
-    chunks: &[KnowledgeChunk],
-    query: &str,
-    limit: usize,
-) -> Vec<SourceCitedPassage> {
-    let terms: Vec<String> = query
-        .to_ascii_lowercase()
-        .split_whitespace()
-        .map(|term| {
-            term.trim_matches(|ch: char| !ch.is_ascii_alphanumeric())
-                .to_string()
-        })
-        .filter(|term| term.len() >= 3)
-        .collect();
-
-    let mut scored: Vec<(usize, &KnowledgeChunk)> = chunks
-        .iter()
-        .filter_map(|chunk| {
-            let haystack =
-                format!("{} {}", chunk.text, chunk.themes.join(" ")).to_ascii_lowercase();
-            let score = terms
-                .iter()
-                .filter(|term| haystack.contains(term.as_str()))
-                .count();
-            (score > 0).then_some((score, chunk))
-        })
-        .collect();
-
-    scored.sort_by_key(|(score, chunk)| {
-        (
-            Reverse(*score),
-            chunk.file_name.clone(),
-            chunk.page,
-            chunk.chunk_index,
-        )
-    });
-    scored
-        .into_iter()
-        .take(limit)
-        .map(|(_, chunk)| source_cited_passage(chunk))
-        .collect()
-}
-
-fn source_cited_passage(chunk: &KnowledgeChunk) -> SourceCitedPassage {
+pub fn source_cited_passage(chunk: &KnowledgeChunk) -> SourceCitedPassage {
     SourceCitedPassage {
         doc_id: chunk.doc_id.clone(),
         file_name: chunk.file_name.clone(),
@@ -186,5 +187,14 @@ fn source_cited_passage(chunk: &KnowledgeChunk) -> SourceCitedPassage {
         themes: chunk.themes.clone(),
         text: chunk.text.clone(),
         citation: chunk.citation.clone(),
+    }
+}
+
+fn search_filters_from_params(params: &SearchPozsarParams) -> SearchFilters {
+    SearchFilters {
+        theme: params.theme.clone(),
+        doc_id: params.doc_id.clone(),
+        file_name: params.file_name.clone(),
+        page: params.page,
     }
 }
