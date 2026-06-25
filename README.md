@@ -76,6 +76,7 @@ Available MCP tools:
 - `explain_pozsar_search`
 - `read_pozsar_source`
 - `read_pozsar_page_context`
+- `answer_pozsar_research_question`
 
 Search results include citations in `file_name:page` format.
 
