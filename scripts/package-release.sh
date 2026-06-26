@@ -21,6 +21,8 @@ mkdir -p "$PACKAGE_DIR/bin" "$PACKAGE_DIR/docs" "$PACKAGE_DIR/eval/fixtures"
 
 cp "$ROOT/target/release/pozsar-mcp" "$PACKAGE_DIR/bin/"
 cp "$ROOT/README.md" "$PACKAGE_DIR/"
+cp "$ROOT/LICENSE" "$PACKAGE_DIR/"
+cp "$ROOT/CHANGELOG.md" "$PACKAGE_DIR/"
 cp -R "$ROOT/docs/." "$PACKAGE_DIR/docs/"
 cp "$ROOT/eval/fixtures/pozsar_eval.json" "$PACKAGE_DIR/eval/fixtures/"
 

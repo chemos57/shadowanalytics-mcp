@@ -442,4 +442,16 @@ Build a local release tarball:
 scripts/package-release.sh
 ```
 
-The archive is written under `dist/` and includes the `pozsar-mcp` release binary, README files, the tracked `docs/` directory, and the public eval fixture. It does not include generated corpus artifacts.
+The archive is written under `dist/` and includes the `pozsar-mcp` release binary, `README.md`, `LICENSE`, `CHANGELOG.md`, the tracked `docs/` directory, and the public eval fixture. It does not include generated corpus artifacts.
+
+Smoke-test the release archive:
+
+```bash
+scripts/smoke-package.sh \
+  dist/pozsar-corpus-mcp-0.1.0-<target>.tar.gz \
+  data/knowledge/chunks/pozsar_chunks.jsonl
+```
+
+The smoke test unpacks the archive, runs `bin/pozsar-mcp --version`, starts the packaged MCP server with `POZSAR_CHUNKS_JSONL`, and calls `get_pozsar_kb_status` over stdio.
+
+Before publishing a public release, complete [PUBLICATION_CHECKLIST.md](PUBLICATION_CHECKLIST.md).

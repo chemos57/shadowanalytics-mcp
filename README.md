@@ -32,6 +32,29 @@ PDF files in `docs/` are tracked so the corpus can be rebuilt from the same sour
 
 See [docs/README.md](docs/README.md) for details.
 
+## Fresh Clone Install And Run
+
+From a fresh clone:
+
+```bash
+git clone <repo-url>
+cd zp_base
+cargo build --workspace
+cargo run -p corpus-cli -- build --docs docs --out data/knowledge
+cargo run -p corpus-cli -- inspect --out data/knowledge
+cargo build --release -p pozsar-mcp
+target/release/pozsar-mcp --version
+```
+
+Run the MCP server with the generated chunk artifact:
+
+```bash
+POZSAR_CHUNKS_JSONL="$PWD/data/knowledge/chunks/pozsar_chunks.jsonl" \
+  target/release/pozsar-mcp
+```
+
+The MCP server uses stdio, so this command waits for an MCP client instead of printing an interactive prompt.
+
 ## Build The Corpus
 
 ```bash
@@ -126,7 +149,17 @@ Package a release tarball under `dist/`:
 scripts/package-release.sh
 ```
 
+Smoke-test the package against a built corpus:
+
+```bash
+scripts/smoke-package.sh \
+  dist/pozsar-corpus-mcp-0.1.0-<target>.tar.gz \
+  data/knowledge/chunks/pozsar_chunks.jsonl
+```
+
 For example MCP prompts and a sample eval report, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
+
+Before public publishing, complete [docs/PUBLICATION_CHECKLIST.md](docs/PUBLICATION_CHECKLIST.md), especially the PDF redistribution review.
 
 ## Development Checks
 
@@ -142,6 +175,7 @@ Tracked:
 
 - Rust workspace source
 - `Cargo.lock`
+- `LICENSE` and `CHANGELOG.md`
 - README files
 - PDF source documents under `docs/`
 - tests and small fixtures
