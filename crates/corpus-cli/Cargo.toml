@@ -12,3 +12,6 @@ path = "src/main.rs"
 anyhow.workspace = true
 clap.workspace = true
 pozsar-kb = { path = "../pozsar-kb" }
+pozsar-mcp = { path = "../pozsar-mcp" }
+serde.workspace = true
+serde_json.workspace = true

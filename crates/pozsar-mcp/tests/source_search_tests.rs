@@ -5,7 +5,7 @@ use pozsar_mcp::search::{
 };
 use pozsar_mcp::tools::{
     load_chunks_jsonl, PozsarCorpusMcp, ReadPageContextParams, ResearchQuestionParams,
-    SearchPozsarParams,
+    SearchPozsarParams, SERVER_NAME, SERVER_VERSION,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use serde_json::Value;
@@ -67,6 +67,47 @@ fn mcp_search_smoke_test_uses_jsonl_fixture_and_returns_citations() {
     assert_eq!(results[0]["doc_id"], "safe-asset-glut");
     assert_eq!(results[0]["page"], 7);
     assert_eq!(results[1]["citation"], "Bretton-Woods-III.pdf:2");
+}
+
+#[test]
+fn mcp_status_reports_server_metadata_and_corpus_counts() {
+    let chunks = vec![
+        chunk(
+            "doc-a",
+            "A.pdf",
+            1,
+            0,
+            "Repo collateral.",
+            "A",
+            &["repo", "collateral"],
+        ),
+        chunk(
+            "doc-a",
+            "A.pdf",
+            1,
+            1,
+            "Dollar liquidity.",
+            "A",
+            &["dollar_liquidity"],
+        ),
+        chunk("doc-b", "B.pdf", 2, 0, "Fx swaps.", "B", &["fx_swaps"]),
+    ];
+    let service = PozsarCorpusMcp::new(chunks).with_chunks_path("/tmp/pozsar_chunks.jsonl");
+
+    let response = service.get_pozsar_kb_status();
+    let status: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(status["server_name"], SERVER_NAME);
+    assert_eq!(status["server_version"], SERVER_VERSION);
+    assert_eq!(status["chunks_path"], "/tmp/pozsar_chunks.jsonl");
+    assert_eq!(status["chunk_count"], 3);
+    assert_eq!(status["document_count"], 2);
+    assert_eq!(status["citation_count"], 2);
+    assert_eq!(status["theme_count"], 4);
+    assert!(status["tools"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("get_pozsar_kb_status".to_string())));
 }
 
 #[test]
