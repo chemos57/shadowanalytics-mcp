@@ -159,6 +159,8 @@ scripts/smoke-package.sh \
 
 For example MCP prompts and a sample eval report, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
+For the full maintainer release flow, see [RELEASE.md](RELEASE.md).
+
 Before public publishing, complete [docs/PUBLICATION_CHECKLIST.md](docs/PUBLICATION_CHECKLIST.md), especially the PDF redistribution review.
 
 ## Development Checks
