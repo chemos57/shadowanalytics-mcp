@@ -1,6 +1,8 @@
 /target/
 /data/knowledge/
 /dev_docs/
+/eval/*.json
+/eval/local/
 .DS_Store
 *.log
 .env

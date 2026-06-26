@@ -54,6 +54,19 @@ cargo run -p corpus-cli -- inspect --out data/knowledge
 
 The inspection command reports document/page/chunk counts, empty pages, pages without chunks, validation issues, and theme distribution. It exits nonzero if validation issues are found.
 
+## Evaluate Retrieval
+
+Run fixture-backed golden-query checks against a chunk artifact:
+
+```bash
+cargo run -p corpus-cli -- eval-search \
+  --chunks data/knowledge/chunks/pozsar_chunks.jsonl \
+  --cases eval/fixtures/pozsar_eval.json \
+  --limit 5
+```
+
+The eval command reports pass/fail per case, returned citations, expected citation ranks, missing citations, and a summary count. It exits nonzero if any expected citation is missing. Keep public-safe fixtures under `eval/fixtures/`; use ignored local files under `eval/local/` or `eval/*.json` for private corpus cases.
+
 ## Run The MCP Server
 
 By default, the MCP server reads `data/knowledge/chunks/pozsar_chunks.jsonl`:

@@ -321,6 +321,9 @@ dependencies = [
  "anyhow",
  "clap",
  "pozsar-kb",
+ "pozsar-mcp",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

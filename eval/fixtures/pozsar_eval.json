@@ -1,0 +1,14 @@
+[
+  {
+    "name": "collateral dollar liquidity",
+    "query": "collateral dollar liquidity",
+    "themes": ["collateral"],
+    "expected_citations": ["The_Safe_Asset_Glut.pdf:7"]
+  },
+  {
+    "name": "bretton woods commodities",
+    "query": "outside money commodities",
+    "doc_id": "bretton-woods-iii",
+    "expected_citations": ["Bretton-Woods-III.pdf:2"]
+  }
+]
