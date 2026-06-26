@@ -4,7 +4,8 @@ use pozsar_mcp::search::{
     search_chunks_with_filters, SearchFilters,
 };
 use pozsar_mcp::tools::{
-    load_chunks_jsonl, PozsarCorpusMcp, ReadPageContextParams, SearchPozsarParams,
+    load_chunks_jsonl, PozsarCorpusMcp, ReadPageContextParams, ResearchQuestionParams,
+    SearchPozsarParams,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use serde_json::Value;
@@ -362,6 +363,21 @@ fn explanation_records_phrase_hits_and_term_counts() {
     assert_eq!(dollar_hit.title_count, 1);
     assert_eq!(dollar_hit.theme_count, 1);
     assert_eq!(dollar_hit.citation_count, 1);
+    assert_eq!(
+        results[0].score,
+        results[0].score_breakdown.text_phrase
+            + results[0].score_breakdown.text_terms
+            + results[0].score_breakdown.title
+            + results[0].score_breakdown.theme
+            + results[0].score_breakdown.citation
+    );
+    assert_eq!(results[0].score_breakdown.text_phrase, 105);
+    assert!(results[0].score_breakdown.text_terms > 0);
+    assert!(results[0]
+        .snippet
+        .as_ref()
+        .unwrap()
+        .contains("Dollar liquidity matters"));
 }
 
 #[test]
@@ -383,12 +399,188 @@ fn explanation_records_title_theme_and_citation_boosts() {
     assert!(results[0]
         .title_boosts
         .contains(&"title:collateral".to_string()));
-    assert!(results[0]
-        .theme_boosts
-        .contains(&"theme:collateral".to_string()));
+    assert_eq!(results[0].theme_boosts, vec!["theme:collateral"]);
     assert!(results[0]
         .citation_boosts
         .contains(&"citation:collateral".to_string()));
+    assert!(results[0].score_breakdown.title > 0);
+    assert!(results[0].score_breakdown.theme > 0);
+    assert!(results[0].score_breakdown.citation > 0);
+}
+
+#[test]
+fn explanation_uses_exact_theme_labels_not_theme_phrase_combinations() {
+    let chunks = vec![chunk(
+        "doc",
+        "Doc.pdf",
+        1,
+        0,
+        "Collateral and dollar funding pressure.",
+        "Doc",
+        &["collateral", "dollar_liquidity"],
+    )];
+
+    let results = explain_search_chunks_with_filters(
+        &chunks,
+        "collateral dollar liquidity",
+        1,
+        &SearchFilters::default(),
+    );
+
+    assert_eq!(
+        results[0].theme_boosts,
+        vec!["theme:collateral", "theme:dollar_liquidity"]
+    );
+    assert!(!results[0]
+        .theme_boosts
+        .contains(&"theme:collateral dollar liquidity".to_string()));
+    assert!(!results[0]
+        .theme_boosts
+        .contains(&"theme:dollar liquidity".to_string()));
+}
+
+#[test]
+fn explanation_includes_term_hits_for_theme_only_matches() {
+    let chunks = vec![chunk(
+        "doc",
+        "Doc.pdf",
+        1,
+        0,
+        "Balance sheet constraints.",
+        "Doc",
+        &["dollar_liquidity"],
+    )];
+
+    let results = explain_search_chunks_with_filters(
+        &chunks,
+        "dollar liquidity",
+        1,
+        &SearchFilters::default(),
+    );
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].theme_boosts, vec!["theme:dollar_liquidity"]);
+    let dollar_hit = results[0]
+        .term_hits
+        .iter()
+        .find(|hit| hit.term == "dollar")
+        .unwrap();
+    assert_eq!(dollar_hit.text_count, 0);
+    assert_eq!(dollar_hit.theme_count, 1);
+    let liquidity_hit = results[0]
+        .term_hits
+        .iter()
+        .find(|hit| hit.term == "liquidity")
+        .unwrap();
+    assert_eq!(liquidity_hit.text_count, 0);
+    assert_eq!(liquidity_hit.theme_count, 1);
+}
+
+#[test]
+fn theme_matching_preserves_short_theme_tokens() {
+    let chunks = vec![chunk(
+        "doc",
+        "Fx.pdf",
+        1,
+        0,
+        "Balance sheet constraints without the matching label words.",
+        "Doc",
+        &["fx_swaps"],
+    )];
+
+    let results =
+        explain_search_chunks_with_filters(&chunks, "fx swaps", 1, &SearchFilters::default());
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].theme_boosts, vec!["theme:fx_swaps"]);
+    let fx_hit = results[0]
+        .term_hits
+        .iter()
+        .find(|hit| hit.term == "fx")
+        .unwrap();
+    assert_eq!(fx_hit.theme_count, 1);
+    let swaps_hit = results[0]
+        .term_hits
+        .iter()
+        .find(|hit| hit.term == "swaps")
+        .unwrap();
+    assert_eq!(swaps_hit.theme_count, 1);
+}
+
+#[test]
+fn theme_matching_accepts_underscore_label_queries() {
+    let chunks = vec![chunk(
+        "doc",
+        "Fx.pdf",
+        1,
+        0,
+        "Balance sheet constraints without the matching label words.",
+        "Doc",
+        &["fx_swaps"],
+    )];
+
+    let results =
+        explain_search_chunks_with_filters(&chunks, "fx_swaps", 1, &SearchFilters::default());
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].theme_boosts, vec!["theme:fx_swaps"]);
+}
+
+#[test]
+fn explanation_snippet_falls_back_to_first_text_term_match() {
+    let chunks = vec![chunk(
+        "doc",
+        "Doc.pdf",
+        1,
+        0,
+        "Funding markets tightened before collateral became scarce.",
+        "Doc",
+        &[],
+    )];
+
+    let results = explain_search_chunks_with_filters(
+        &chunks,
+        "collateral repo",
+        1,
+        &SearchFilters::default(),
+    );
+
+    assert_eq!(
+        results[0].snippet.as_deref(),
+        Some("Funding markets tightened before collateral became scarce.")
+    );
+}
+
+#[test]
+fn snippet_fallback_uses_whole_term_not_embedded_substring() {
+    let text = format!(
+        "Corporate funding pressure appears first. {} The actual rate token appears later.",
+        "filler ".repeat(40)
+    );
+    let chunks = vec![chunk("doc", "Doc.pdf", 1, 0, &text, "Doc", &[])];
+
+    let results = explain_search_chunks_with_filters(&chunks, "rate", 1, &SearchFilters::default());
+
+    let snippet = results[0].snippet.as_deref().unwrap();
+    assert!(snippet.contains("actual rate token"));
+    assert!(!snippet.starts_with("Corporate"));
+}
+
+#[test]
+fn snippet_stays_bounded_to_local_match_window_when_words_repeat() {
+    let text = format!(
+        "anchor {} middle {} anchor",
+        "filler ".repeat(80),
+        "target ".repeat(1)
+    );
+    let chunks = vec![chunk("doc", "Doc.pdf", 1, 0, &text, "Doc", &[])];
+
+    let results =
+        explain_search_chunks_with_filters(&chunks, "target", 1, &SearchFilters::default());
+
+    let snippet = results[0].snippet.as_deref().unwrap();
+    assert!(snippet.contains("target"));
+    assert!(snippet.len() <= 260, "snippet too long: {}", snippet.len());
 }
 
 #[test]
@@ -483,6 +675,182 @@ fn mcp_explain_search_returns_scoring_json() {
     assert!(results[0]["score"].as_u64().unwrap() > 0);
     assert_eq!(results[0]["passage"]["citation"], "Dollar-Liquidity.pdf:1");
     assert_eq!(results[0]["phrase_hits"][0], "text:dollar liquidity");
+    assert!(
+        results[0]["score_breakdown"]["text_phrase"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert!(results[0]["snippet"]
+        .as_str()
+        .unwrap()
+        .contains("Dollar liquidity matters"));
+}
+
+#[test]
+fn mcp_research_question_returns_evidence_bundle() {
+    let chunks = vec![
+        chunk(
+            "doc-a",
+            "Dollar.pdf",
+            1,
+            0,
+            "Dollar liquidity depends on collateral flows through repo markets.",
+            "Dollar Liquidity",
+            &["dollar_liquidity", "collateral"],
+        ),
+        chunk(
+            "doc-a",
+            "Dollar.pdf",
+            2,
+            0,
+            "Neighboring page explains dealer balance sheet constraints.",
+            "Dollar Liquidity",
+            &["dollar_liquidity"],
+        ),
+        chunk(
+            "doc-b",
+            "Repo.pdf",
+            3,
+            0,
+            "Repo collateral scarcity can tighten dollar funding.",
+            "Repo",
+            &["repo", "collateral"],
+        ),
+    ];
+    let service = PozsarCorpusMcp::new(chunks);
+
+    let response = service.answer_pozsar_research_question(Parameters(ResearchQuestionParams {
+        question: "How does collateral affect dollar liquidity?".to_string(),
+        themes: Some(vec!["collateral".to_string()]),
+        doc_id: None,
+        limit: Some(3),
+    }));
+    let bundle: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(
+        bundle["question"],
+        "How does collateral affect dollar liquidity?"
+    );
+    assert!(bundle["query_plan"].as_array().unwrap().iter().any(|step| {
+        step["kind"] == "original_question"
+            && step["query"] == "How does collateral affect dollar liquidity?"
+    }));
+    assert!(bundle["query_plan"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|step| step["kind"] == "theme_filtered" && step["theme"] == "collateral"));
+    assert!(!bundle["evidence"].as_array().unwrap().is_empty());
+    assert!(bundle["evidence"].as_array().unwrap().iter().any(|item| {
+        item["citation"] == "Dollar.pdf:1"
+            && item["query_sources"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|source| source == "original_question")
+    }));
+    assert!(bundle["citations"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("Dollar.pdf:1".to_string())));
+    assert!(bundle["suggested_followups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|followup| followup.as_str().unwrap().contains("collateral")));
+}
+
+#[test]
+fn mcp_research_question_fetches_context_around_top_hits() {
+    let chunks = vec![
+        chunk(
+            "doc",
+            "Context.pdf",
+            1,
+            0,
+            "Previous page setup.",
+            "Doc",
+            &[],
+        ),
+        chunk(
+            "doc",
+            "Context.pdf",
+            2,
+            0,
+            "Dollar liquidity and collateral are the direct hit.",
+            "Doc",
+            &["collateral"],
+        ),
+        chunk(
+            "doc",
+            "Context.pdf",
+            3,
+            0,
+            "Next page implication.",
+            "Doc",
+            &[],
+        ),
+    ];
+    let service = PozsarCorpusMcp::new(chunks);
+
+    let response = service.answer_pozsar_research_question(Parameters(ResearchQuestionParams {
+        question: "dollar liquidity collateral".to_string(),
+        themes: None,
+        doc_id: Some("doc".to_string()),
+        limit: Some(1),
+    }));
+    let bundle: Value = serde_json::from_str(&response).unwrap();
+    let context = bundle["evidence"][0]["context"].as_array().unwrap();
+
+    assert_eq!(
+        context
+            .iter()
+            .map(|passage| passage["page"].as_u64().unwrap())
+            .collect::<Vec<_>>(),
+        vec![1, 2, 3]
+    );
+}
+
+#[test]
+fn mcp_research_question_limits_after_sorting_merged_candidates() {
+    let chunks = vec![
+        chunk(
+            "weak",
+            "Weak.pdf",
+            1,
+            0,
+            "What does collateral affect dollar liquidity?",
+            "Weak",
+            &[],
+        ),
+        chunk(
+            "strong",
+            "Strong.pdf",
+            2,
+            0,
+            "Collateral dollar liquidity. Collateral dollar liquidity. Collateral dollar liquidity.",
+            "Collateral Dollar Liquidity",
+            &["collateral"],
+        ),
+    ];
+    let service = PozsarCorpusMcp::new(chunks);
+
+    let response = service.answer_pozsar_research_question(Parameters(ResearchQuestionParams {
+        question: "What does collateral affect dollar liquidity?".to_string(),
+        themes: None,
+        doc_id: None,
+        limit: Some(1),
+    }));
+    let bundle: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(bundle["evidence"].as_array().unwrap().len(), 1);
+    assert_eq!(bundle["evidence"][0]["citation"], "Strong.pdf:2");
+    assert!(bundle["evidence"][0]["query_sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|source| source == "key_phrase"));
 }
 
 fn chunk(

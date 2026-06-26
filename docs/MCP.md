@@ -243,6 +243,97 @@ Output:
 
 Use this tool when ranking looks surprising or when tuning the search layer.
 
+### `answer_pozsar_research_question`
+
+Builds a compact source-cited evidence bundle for a research question. This tool does not generate an analytical answer; it returns deterministic evidence for a client or advisor layer to reason over.
+
+Input:
+
+```json
+{
+  "question": "How does collateral affect dollar liquidity?",
+  "themes": ["collateral", "dollar_liquidity"],
+  "doc_id": "bretton-woods-iii-zoltan-pozsar",
+  "limit": 5
+}
+```
+
+Parameters:
+
+- `question` required string.
+- `themes` optional array of theme labels. When present, the tool runs additional theme-filtered searches.
+- `doc_id` optional string. When present, all internal searches are restricted to that document.
+- `limit` optional integer, clamped to `1..=10`, default `5`.
+
+Output:
+
+```json
+{
+  "question": "How does collateral affect dollar liquidity?",
+  "query_plan": [
+    {
+      "kind": "original_question",
+      "query": "How does collateral affect dollar liquidity?",
+      "theme": null,
+      "doc_id": null
+    },
+    {
+      "kind": "key_phrase",
+      "query": "collateral dollar liquidity",
+      "theme": null,
+      "doc_id": null
+    },
+    {
+      "kind": "theme_filtered",
+      "query": "How does collateral affect dollar liquidity?",
+      "theme": "collateral",
+      "doc_id": null
+    }
+  ],
+  "evidence": [
+    {
+      "citation": "Bretton-Woods-III-Zoltan-Pozsar.pdf:1",
+      "passage": {
+        "doc_id": "bretton-woods-iii-zoltan-pozsar",
+        "file_name": "Bretton-Woods-III-Zoltan-Pozsar.pdf",
+        "page": 1,
+        "chunk_index": 0,
+        "themes": ["collateral", "dollar_liquidity"],
+        "text": "Chunk text...",
+        "citation": "Bretton-Woods-III-Zoltan-Pozsar.pdf:1"
+      },
+      "score": 137,
+      "score_breakdown": {
+        "text_phrase": 105,
+        "text_terms": 16,
+        "title": 0,
+        "theme": 18,
+        "citation": 0
+      },
+      "snippet": "Matched source snippet...",
+      "query_sources": ["original_question", "key_phrase"],
+      "context": [
+        {
+          "doc_id": "bretton-woods-iii-zoltan-pozsar",
+          "file_name": "Bretton-Woods-III-Zoltan-Pozsar.pdf",
+          "page": 1,
+          "chunk_index": 0,
+          "themes": ["collateral", "dollar_liquidity"],
+          "text": "Chunk text...",
+          "citation": "Bretton-Woods-III-Zoltan-Pozsar.pdf:1"
+        }
+      ]
+    }
+  ],
+  "citations": ["Bretton-Woods-III-Zoltan-Pozsar.pdf:1"],
+  "suggested_followups": [
+    "Search adjacent pages for how collateral connects to the question."
+  ]
+}
+```
+
+Use this as the default tool for open-ended corpus research. It fans out through the original question, a deterministic key-phrase query, and optional theme-filtered searches, then deduplicates evidence by document page and includes neighboring page context.
+
 ### `read_pozsar_source`
 
 Reads all chunks for one exact document page.
