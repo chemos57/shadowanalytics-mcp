@@ -1,0 +1,67 @@
+{
+  "total": 2,
+  "fail_fast": false,
+  "stopped_early": false,
+  "passed": 2,
+  "failed": 0,
+  "category_summary": [
+    {
+      "category": "commodities",
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "category": "dollar_liquidity",
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  ],
+  "cases": [
+    {
+      "name": "collateral dollar liquidity",
+      "category": "dollar_liquidity",
+      "notes": "Core liquidity plumbing query; should surface Safe Asset Glut early.",
+      "passed": true,
+      "max_rank": 3,
+      "returned_citations": [
+        "The_Safe_Asset_Glut.pdf:7",
+        "Bretton-Woods-III.pdf:2"
+      ],
+      "expected_ranks": [
+        {
+          "citation": "The_Safe_Asset_Glut.pdf:7",
+          "rank": 1
+        }
+      ],
+      "missing_citations": [],
+      "rank_failures": [],
+      "top_scores": [
+        "The_Safe_Asset_Glut.pdf:7 score=234",
+        "Bretton-Woods-III.pdf:2 score=181"
+      ]
+    },
+    {
+      "name": "bretton woods commodities",
+      "category": "commodities",
+      "notes": null,
+      "passed": true,
+      "max_rank": null,
+      "returned_citations": [
+        "Bretton-Woods-III.pdf:2"
+      ],
+      "expected_ranks": [
+        {
+          "citation": "Bretton-Woods-III.pdf:2",
+          "rank": 1
+        }
+      ],
+      "missing_citations": [],
+      "rank_failures": [],
+      "top_scores": [
+        "Bretton-Woods-III.pdf:2 score=196"
+      ]
+    }
+  ]
+}

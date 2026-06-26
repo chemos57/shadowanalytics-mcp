@@ -1,4 +1,5 @@
 /target/
+/dist/
 /data/knowledge/
 /dev_docs/
 /eval/*.json
@@ -6,5 +7,3 @@
 .DS_Store
 *.log
 .env
-/docs/*.pdf
-!/docs/README.md

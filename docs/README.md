@@ -1,8 +1,8 @@
-# Local PDF Corpus
+# PDF Corpus
 
-This directory is for local source PDFs used by the Pozsar corpus pipeline.
+This directory contains source PDFs used by the Pozsar corpus pipeline.
 
-PDF files are intentionally not tracked in git because this repository may become public and redistribution rights can vary by document. To build the corpus locally, place the source PDFs directly in this directory:
+PDF files are tracked so the corpus can be rebuilt from the same source documents across machines. Before adding new PDFs to a public repository, confirm their redistribution terms.
 
 ```text
 docs/
@@ -11,7 +11,7 @@ docs/
   ...
 ```
 
-Then rebuild generated artifacts:
+Rebuild generated artifacts after changing the PDF set:
 
 ```bash
 cargo run -p corpus-cli -- build --docs docs --out data/knowledge

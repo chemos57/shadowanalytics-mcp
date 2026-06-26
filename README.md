@@ -22,13 +22,13 @@ crates/
   pozsar-kb/      Core corpus library: manifesting, extraction, chunking, themes, inspection
   corpus-cli/     CLI for building and inspecting generated corpus artifacts
   pozsar-mcp/     Read-only MCP server over generated corpus chunks
-docs/             Local PDF inputs; PDFs are ignored by git
+docs/             Tracked PDF corpus inputs and usage docs
 data/knowledge/   Generated corpus artifacts; ignored by git
 ```
 
 ## Local PDF Inputs
 
-PDF files are not tracked because this repository may become public and redistribution rights can vary by document. Place local source PDFs directly under `docs/`.
+PDF files in `docs/` are tracked so the corpus can be rebuilt from the same source documents across machines. Before adding new PDFs to a public repository, confirm their redistribution terms.
 
 See [docs/README.md](docs/README.md) for details.
 
@@ -62,10 +62,28 @@ Run fixture-backed golden-query checks against a chunk artifact:
 cargo run -p corpus-cli -- eval-search \
   --chunks data/knowledge/chunks/pozsar_chunks.jsonl \
   --cases eval/fixtures/pozsar_eval.json \
-  --limit 5
+  --limit 5 \
+  --tool research-question \
+  --format text \
+  --fail-fast \
+  --output data/eval/research-question-report.json
 ```
 
-The eval command reports pass/fail per case, returned citations, expected citation ranks, missing citations, and a summary count. It exits nonzero if any expected citation is missing. Keep public-safe fixtures under `eval/fixtures/`; use ignored local files under `eval/local/` or `eval/*.json` for private corpus cases.
+The eval command reports pass/fail per case, returned citations, expected citation ranks, missing citations, category summaries, and a summary count. Use `--tool search` to test raw local search or `--tool research-question` to test the research bundle path. Use `--format json` for CI or machine-readable regression artifacts. Use `--output <path>` to write the report to disk while printing only the output path and summary to stdout. Use `--fail-fast` to stop after the first failing case. It exits nonzero if any expected citation is missing or ranked too low. Keep public-safe fixtures under `eval/fixtures/`; use ignored local files under `eval/local/` or `eval/*.json` for private corpus cases.
+
+Eval cases can include optional `max_rank` to require each expected citation to appear by that rank:
+
+```json
+{
+  "name": "collateral dollar liquidity",
+  "category": "dollar_liquidity",
+  "notes": "Core liquidity plumbing query; should surface Safe Asset Glut early.",
+  "query": "collateral dollar liquidity",
+  "themes": ["collateral"],
+  "expected_citations": ["The_Safe_Asset_Glut.pdf:7"],
+  "max_rank": 3
+}
+```
 
 ## Run The MCP Server
 
@@ -83,6 +101,7 @@ POZSAR_CHUNKS_JSONL=/path/to/pozsar_chunks.jsonl cargo run -p pozsar-mcp
 
 Available MCP tools:
 
+- `get_pozsar_kb_status`
 - `list_pozsar_docs`
 - `list_pozsar_themes`
 - `search_pozsar_kb`
@@ -94,6 +113,20 @@ Available MCP tools:
 Search results include citations in `file_name:page` format.
 
 For Claude Desktop and Codex configuration examples, tool parameters, and response shapes, see [docs/MCP.md](docs/MCP.md).
+
+Check the MCP binary version without starting the stdio server:
+
+```bash
+cargo run -p pozsar-mcp -- --version
+```
+
+Package a release tarball under `dist/`:
+
+```bash
+scripts/package-release.sh
+```
+
+For example MCP prompts and a sample eval report, see [docs/EXAMPLES.md](docs/EXAMPLES.md).
 
 ## Development Checks
 
@@ -110,12 +143,12 @@ Tracked:
 - Rust workspace source
 - `Cargo.lock`
 - README files
+- PDF source documents under `docs/`
 - tests and small fixtures
 
 Ignored:
 
 - `target/`
 - `data/knowledge/`
-- `docs/*.pdf`
 - `dev_docs/`
 - local env/log files

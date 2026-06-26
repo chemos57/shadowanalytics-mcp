@@ -15,6 +15,12 @@ Then build the MCP binary:
 cargo build --release -p pozsar-mcp
 ```
 
+Check the binary version without starting the stdio server:
+
+```bash
+target/release/pozsar-mcp --version
+```
+
 The server reads chunks from `data/knowledge/chunks/pozsar_chunks.jsonl` by default. Use `POZSAR_CHUNKS_JSONL` to point it at another artifact:
 
 ```bash
@@ -97,6 +103,43 @@ Prefer the release binary for normal use because it avoids compile-time startup 
 ## Tools
 
 All tools are read-only.
+
+### `get_pozsar_kb_status`
+
+Returns server metadata and corpus artifact counts.
+
+Input:
+
+```json
+{}
+```
+
+Output:
+
+```json
+{
+  "server_name": "pozsar-corpus",
+  "server_version": "0.1.0",
+  "default_chunks_jsonl": "data/knowledge/chunks/pozsar_chunks.jsonl",
+  "chunks_path": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl",
+  "chunk_count": 421,
+  "document_count": 18,
+  "citation_count": 217,
+  "theme_count": 8,
+  "tools": [
+    "get_pozsar_kb_status",
+    "list_pozsar_docs",
+    "list_pozsar_themes",
+    "search_pozsar_kb",
+    "explain_pozsar_search",
+    "read_pozsar_source",
+    "read_pozsar_page_context",
+    "answer_pozsar_research_question"
+  ]
+}
+```
+
+Use this first when debugging an MCP client config. It confirms that the server loaded the expected chunk artifact and exposes the expected tool set.
 
 ### `list_pozsar_docs`
 
@@ -377,11 +420,12 @@ Use this after `search_pozsar_kb` finds a relevant page and you need surrounding
 
 If the MCP client starts but tools return empty arrays:
 
-1. Confirm PDFs exist under `docs/`.
-2. Rebuild artifacts with `corpus-cli build`.
-3. Run `corpus-cli inspect` and verify `validation_issues: 0`.
-4. Confirm `POZSAR_CHUNKS_JSONL` points to the intended `pozsar_chunks.jsonl`.
-5. Restart the MCP client after changing config.
+1. Call `get_pozsar_kb_status` and confirm `chunk_count` is greater than zero.
+2. Confirm PDFs exist under `docs/`.
+3. Rebuild artifacts with `corpus-cli build`.
+4. Run `corpus-cli inspect` and verify `validation_issues: 0`.
+5. Confirm `POZSAR_CHUNKS_JSONL` points to the intended `pozsar_chunks.jsonl`.
+6. Restart the MCP client after changing config.
 
 If the MCP client cannot start the server:
 
@@ -389,3 +433,13 @@ If the MCP client cannot start the server:
 2. Run the binary manually from a terminal and check for errors.
 3. Increase `startup_timeout_sec` for Codex or equivalent startup timeout in the client.
 4. Prefer the release binary over `cargo run` for configured clients.
+
+## Release Package
+
+Build a local release tarball:
+
+```bash
+scripts/package-release.sh
+```
+
+The archive is written under `dist/` and includes the `pozsar-mcp` release binary, README files, the tracked `docs/` directory, and the public eval fixture. It does not include generated corpus artifacts.

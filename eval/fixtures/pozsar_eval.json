@@ -1,12 +1,16 @@
 [
   {
     "name": "collateral dollar liquidity",
+    "category": "dollar_liquidity",
+    "notes": "Core liquidity plumbing query; should surface Safe Asset Glut early.",
     "query": "collateral dollar liquidity",
     "themes": ["collateral"],
-    "expected_citations": ["The_Safe_Asset_Glut.pdf:7"]
+    "expected_citations": ["The_Safe_Asset_Glut.pdf:7"],
+    "max_rank": 3
   },
   {
     "name": "bretton woods commodities",
+    "category": "commodities",
     "query": "outside money commodities",
     "doc_id": "bretton-woods-iii",
     "expected_citations": ["Bretton-Woods-III.pdf:2"]

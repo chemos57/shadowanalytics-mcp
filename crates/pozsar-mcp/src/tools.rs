@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use pozsar_kb::chunk::KnowledgeChunk;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{ServerCapabilities, ServerInfo},
+    model::{Implementation, ServerCapabilities, ServerInfo},
     schemars, tool, tool_handler, tool_router, ServerHandler,
 };
 use serde::{Deserialize, Serialize};
@@ -17,9 +17,14 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
+pub const SERVER_NAME: &str = "pozsar-corpus";
+pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const DEFAULT_CHUNKS_JSONL: &str = "data/knowledge/chunks/pozsar_chunks.jsonl";
+
 #[derive(Clone)]
 pub struct PozsarCorpusMcp {
     chunks: Arc<Vec<KnowledgeChunk>>,
+    chunks_path: Option<String>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -27,7 +32,52 @@ impl PozsarCorpusMcp {
     pub fn new(chunks: Vec<KnowledgeChunk>) -> Self {
         Self {
             chunks: Arc::new(chunks),
+            chunks_path: None,
             tool_router: Self::tool_router(),
+        }
+    }
+
+    pub fn with_chunks_path(mut self, chunks_path: impl Into<String>) -> Self {
+        self.chunks_path = Some(chunks_path.into());
+        self
+    }
+
+    fn status(&self) -> PozsarKbStatus {
+        let documents: BTreeSet<&str> = self
+            .chunks
+            .iter()
+            .map(|chunk| chunk.doc_id.as_str())
+            .collect();
+        let citations: BTreeSet<&str> = self
+            .chunks
+            .iter()
+            .map(|chunk| chunk.citation.as_str())
+            .collect();
+        let themes: BTreeSet<&str> = self
+            .chunks
+            .iter()
+            .flat_map(|chunk| chunk.themes.iter().map(String::as_str))
+            .collect();
+
+        PozsarKbStatus {
+            server_name: SERVER_NAME,
+            server_version: SERVER_VERSION,
+            default_chunks_jsonl: DEFAULT_CHUNKS_JSONL,
+            chunks_path: self.chunks_path.clone(),
+            chunk_count: self.chunks.len(),
+            document_count: documents.len(),
+            citation_count: citations.len(),
+            theme_count: themes.len(),
+            tools: vec![
+                "get_pozsar_kb_status",
+                "list_pozsar_docs",
+                "list_pozsar_themes",
+                "search_pozsar_kb",
+                "explain_pozsar_search",
+                "read_pozsar_source",
+                "read_pozsar_page_context",
+                "answer_pozsar_research_question",
+            ],
         }
     }
 }
@@ -73,8 +123,28 @@ pub struct SourceCitedPassage {
     pub citation: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct PozsarKbStatus {
+    pub server_name: &'static str,
+    pub server_version: &'static str,
+    pub default_chunks_jsonl: &'static str,
+    pub chunks_path: Option<String>,
+    pub chunk_count: usize,
+    pub document_count: usize,
+    pub citation_count: usize,
+    pub theme_count: usize,
+    pub tools: Vec<&'static str>,
+}
+
 #[tool_router]
 impl PozsarCorpusMcp {
+    #[tool(
+        description = "Return MCP server metadata and local Pozsar corpus artifact counts. Read-only."
+    )]
+    pub fn get_pozsar_kb_status(&self) -> String {
+        serde_json::to_string_pretty(&self.status()).unwrap()
+    }
+
     #[tool(description = "List documents available in the local Pozsar corpus. Read-only.")]
     pub fn list_pozsar_docs(&self) -> String {
         let mut docs: BTreeMap<String, CorpusDocument> = BTreeMap::new();
@@ -172,6 +242,13 @@ impl ServerHandler for PozsarCorpusMcp {
                 "Read-only source-cited search over the local Pozsar PDF corpus.".into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
+            server_info: Implementation {
+                name: SERVER_NAME.into(),
+                title: Some("Pozsar Corpus MCP".into()),
+                version: SERVER_VERSION.into(),
+                icons: None,
+                website_url: None,
+            },
             ..Default::default()
         }
     }
