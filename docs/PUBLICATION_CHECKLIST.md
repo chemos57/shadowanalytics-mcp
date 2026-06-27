@@ -4,12 +4,12 @@ Use this checklist before publishing the repository or release archive publicly.
 
 ## PDF Redistribution
 
-The repository tracks PDFs under `docs/` so the corpus is reproducible. Before public publishing, review each PDF and record the source and redistribution comfort level.
+The repository tracks PDFs under `docs/` so the corpus is reproducible. `docs/SOURCE_MAP.md` maps every tracked PDF to the public source URL recorded in `Zoltan-Pozsar-Bibliography.html`. Before public publishing, review each PDF and record the redistribution comfort level.
 
 For each PDF:
 
 - Confirm the document was downloaded from a public web source.
-- Record the source URL or source page.
+- Confirm it appears in `docs/SOURCE_MAP.md`.
 - Check whether the source allows redistribution, mirroring, or archival reuse.
 - Prefer linking instead of bundling any PDF with unclear redistribution terms.
 - Remove any document that is private, paywalled, restricted, or unclear.

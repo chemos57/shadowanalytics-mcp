@@ -442,7 +442,7 @@ Build a local release tarball:
 scripts/package-release.sh
 ```
 
-The archive is written under `dist/` and includes the `pozsar-mcp` release binary, `README.md`, `LICENSE`, `CHANGELOG.md`, the tracked `docs/` directory, and the public eval fixture. It does not include generated corpus artifacts.
+The archive is written under `dist/` and includes the `pozsar-mcp` release binary, `README.md`, `LICENSE`, `CHANGELOG.md`, `Zoltan-Pozsar-Bibliography.html` when present, the tracked `docs/` directory, and the public eval fixture. It does not include generated corpus artifacts.
 
 Smoke-test the release archive:
 

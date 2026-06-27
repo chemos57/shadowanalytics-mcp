@@ -4,6 +4,8 @@ This directory contains source PDFs used by the Pozsar corpus pipeline.
 
 PDF files are tracked so the corpus can be rebuilt from the same source documents across machines. Before adding new PDFs to a public repository, confirm their redistribution terms.
 
+See [SOURCE_MAP.md](SOURCE_MAP.md) for the public source URL and SHA-256 hash of each tracked PDF.
+
 ```text
 docs/
   Bretton-Woods-III-Zoltan-Pozsar.pdf

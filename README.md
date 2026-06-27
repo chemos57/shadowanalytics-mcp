@@ -28,7 +28,7 @@ data/knowledge/   Generated corpus artifacts; ignored by git
 
 ## Local PDF Inputs
 
-PDF files in `docs/` are tracked so the corpus can be rebuilt from the same source documents across machines. Before adding new PDFs to a public repository, confirm their redistribution terms.
+PDF files in `docs/` are tracked so the corpus can be rebuilt from the same source documents across machines. [docs/SOURCE_MAP.md](docs/SOURCE_MAP.md) maps each PDF to the public source URL recorded in `Zoltan-Pozsar-Bibliography.html`. Before adding new PDFs to a public repository, confirm their redistribution terms.
 
 See [docs/README.md](docs/README.md) for details.
 

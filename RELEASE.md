@@ -115,6 +115,7 @@ bin/pozsar-mcp
 README.md
 LICENSE
 CHANGELOG.md
+Zoltan-Pozsar-Bibliography.html
 docs/
 eval/fixtures/pozsar_eval.json
 ```

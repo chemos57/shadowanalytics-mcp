@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zoltan Pozsar — A Complete Bibliography</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F2EA;
+    --paper-2:#EFEBDF;
+    --ink:#1B2826;
+    --ink-soft:#5A645F;
+    --brass:#9A7637;
+    --brass-bright:#C2954A;
+    --rule:#D7D0BD;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Spectral",Georgia,serif;
+    font-weight:400;
+    line-height:1.55;
+    font-size:17px;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:64px 32px 96px;}
+  a{color:var(--brass);text-decoration:none;border-bottom:1px solid transparent;transition:color .15s,border-color .15s;}
+  a:hover{color:var(--brass-bright);border-bottom-color:var(--brass-bright);}
+  a:focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:2px;}
+
+  /* ---- masthead ---- */
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+    letter-spacing:.28em;text-transform:uppercase;color:var(--brass);margin:0 0 22px;}
+  h1{font-family:"Fraunces",serif;font-weight:900;font-size:clamp(46px,9vw,86px);
+    line-height:.96;letter-spacing:-.02em;margin:0;}
+  .standfirst{font-family:"Spectral",serif;font-style:italic;font-weight:400;
+    font-size:clamp(18px,2.4vw,22px);color:var(--ink-soft);max-width:46ch;margin:20px 0 0;}
+  .masthead-rule{height:2px;background:var(--brass);margin:34px 0 18px;border:0;}
+  .meta-row{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);
+    display:flex;flex-wrap:wrap;gap:6px 26px;letter-spacing:.02em;}
+  .meta-row b{color:var(--ink);font-weight:600;}
+
+  /* ---- intro ---- */
+  .intro{margin:42px 0 8px;font-size:17px;}
+  .intro p{margin:0 0 14px;max-width:64ch;}
+  .legend{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);
+    border-left:2px solid var(--rule);padding:4px 0 4px 16px;margin-top:18px;line-height:1.8;}
+  .legend .sw{color:var(--brass);font-weight:600;}
+
+  /* ---- contents nav ---- */
+  nav.toc{margin:40px 0 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+    padding:18px 0;display:flex;flex-wrap:wrap;gap:8px 26px;
+    font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.02em;}
+  nav.toc a{border:0;color:var(--ink);}
+  nav.toc a:hover{color:var(--brass);}
+  nav.toc .rn{color:var(--brass);font-weight:600;margin-right:7px;}
+
+  /* ---- sections ---- */
+  section{margin-top:62px;}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:6px;}
+  .rn-big{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600;
+    color:var(--brass);letter-spacing:.1em;flex:0 0 auto;padding-top:4px;}
+  h2{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(26px,4.2vw,38px);
+    line-height:1.05;letter-spacing:-.015em;margin:0;}
+  .sec-desc{color:var(--ink-soft);font-size:16px;margin:4px 0 4px 0;max-width:62ch;}
+  .sec-desc .count{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--brass);
+    text-transform:uppercase;letter-spacing:.12em;}
+  .sec-note{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);
+    background:var(--paper-2);border:1px solid var(--rule);padding:10px 14px;border-radius:3px;
+    margin:14px 0 22px;line-height:1.6;}
+  .ledger{margin-top:14px;}
+
+  /* ---- ledger entry (leader-dot row) ---- */
+  .entry{display:flex;align-items:flex-end;gap:.55rem;padding:7px 0;
+    border-bottom:1px solid rgba(215,208,189,.45);}
+  .entry .num{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--brass);
+    flex:0 0 2.4rem;text-align:right;font-weight:500;line-height:1.7;}
+  .entry .title{font-family:"Spectral",serif;font-size:17px;font-weight:400;line-height:1.35;}
+  .entry .title a{font-weight:500;}
+  .entry .leader{flex:1 1 auto;min-width:1rem;border-bottom:1px dotted var(--rule);
+    transform:translateY(-.34em);}
+  .entry .date{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);
+    white-space:nowrap;line-height:1.9;flex:0 0 auto;}
+  .entry .flag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.1em;border:1px solid var(--rule);border-radius:2px;
+    padding:1px 5px;margin-left:8px;vertical-align:1px;}
+  .entry.plain-link{border-bottom:1px solid rgba(215,208,189,.45);}
+  .entry.plain-link .title a{font-weight:500;}
+
+  /* phase divider inside GMN */
+  .phase{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--brass);margin:26px 0 10px;
+    display:flex;align-items:center;gap:14px;}
+  .phase::after{content:"";flex:1;height:1px;background:var(--rule);}
+
+  /* ---- papers (richer cards) ---- */
+  .paper{padding:18px 0;border-bottom:1px solid var(--rule);}
+  .paper-head{display:flex;align-items:baseline;gap:14px;}
+  .paper-head .num{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--brass);
+    font-weight:600;flex:0 0 auto;}
+  .paper-title{font-family:"Spectral",serif;font-weight:600;font-size:20px;line-height:1.25;
+    margin:0;letter-spacing:-.005em;}
+  .paper-meta{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);
+    margin:7px 0 0 calc(2.4rem);}
+  .paper-note{color:var(--ink-soft);font-size:15.5px;margin:8px 0 0 calc(2.4rem);max-width:62ch;}
+  .paper-links{font-family:"IBM Plex Mono",monospace;font-size:12.5px;margin:10px 0 0 calc(2.4rem);}
+
+  /* ---- footer ---- */
+  footer{margin-top:72px;border-top:2px solid var(--brass);padding-top:22px;
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);line-height:1.85;}
+  footer b{color:var(--ink);font-weight:600;}
+
+  /* ---- load animation ---- */
+  section,.intro,nav.toc{opacity:0;transform:translateY(8px);animation:rise .6s ease forwards;}
+  .intro{animation-delay:.05s;} nav.toc{animation-delay:.12s;}
+  section:nth-of-type(1){animation-delay:.18s;}
+  section:nth-of-type(2){animation-delay:.24s;}
+  section:nth-of-type(n+3){animation-delay:.30s;}
+  @keyframes rise{to{opacity:1;transform:none;}}
+  @media (prefers-reduced-motion:reduce){
+    section,.intro,nav.toc{animation:none;opacity:1;transform:none;}
+  }
+
+  @media (max-width:560px){
+    .wrap{padding:44px 20px 72px;}
+    .entry .num{flex-basis:1.9rem;}
+    .paper-meta,.paper-note,.paper-links{margin-left:0;}
+    .entry .date{font-size:11px;}
+  }
+
+  @media print{
+    body{background:#fff;color:#000;font-size:11.5px;}
+    a{color:#000;border:0;}
+    .wrap{max-width:none;padding:0;}
+    section,.intro,nav.toc{opacity:1;transform:none;animation:none;}
+    .entry,.paper{page-break-inside:avoid;}
+    section{page-break-inside:auto;margin-top:30px;}
+    nav.toc{display:none;}
+    .sec-note,.legend{background:#fff;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">A Complete Bibliography &middot; 2008&ndash;2026</p>
+    <h1>Zoltan<br>Pozsar</h1>
+    <p class="standfirst">The plumbing of the global monetary system, mapped across two decades &mdash; from the Fed and IMF to Bretton&nbsp;Woods&nbsp;III and beyond.</p>
+    <hr class="masthead-rule">
+    <div class="meta-row">
+      <span><b>158+</b> works catalogued</span>
+      <span>Fed &middot; IMF &middot; U.S. Treasury &middot; Credit Suisse &middot; Ex Uno Plures</span>
+      <span>Compiled <b>24 June 2026</b></span>
+    </div>
+  </header>
+
+  <div class="intro">
+    <p>This is a consolidated index of Zoltan Pozsar's public written work: his foundational official-sector and academic papers, his VoxEU columns, the full run of Credit Suisse <em>Global Money Notes</em> (including the 2022 <em>Bretton Woods III</em> / <em>War</em> series), and the complete title catalogue of his current research at Ex Uno Plures.</p>
+    <div class="legend">
+      <span class="sw">Linked titles</span> &rarr; free public PDF or page.<br>
+      <span class="sw">Plain titles</span> &rarr; subscriber research or citation-only (no public file).
+    </div>
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <a href="#papers"><span class="rn">I</span>Foundational Papers</a>
+    <a href="#voxeu"><span class="rn">II</span>VoxEU Columns</a>
+    <a href="#gmn"><span class="rn">III</span>Global Money Notes</a>
+    <a href="#mwo"><span class="rn">IV</span>Money and World Order</a>
+    <a href="#mbb"><span class="rn">V</span>Money, Banks and Bases</a>
+    <a href="#gmd"><span class="rn">VI</span>Global Money Dispatch</a>
+    <a href="#profiles"><span class="rn">VII</span>Profiles &amp; Archives</a>
+    <a href="#secondary"><span class="rn">VIII</span>Compilations &amp; Interviews</a>
+  </nav>
+
+  <section id="papers">
+    <div class="sec-head"><span class="rn-big">I</span><h2>Foundational Papers</h2></div>
+    <p class="sec-desc">Peer-reviewed and official-sector work from his years at the New York Fed, the IMF, and the U.S. Treasury's Office of Financial Research. <span class="count">10 works</span></p>
+    <div class="ledger">
+      <div class="paper"><div class="paper-head"><span class="num">01</span><h3 class="paper-title">The Rise and Fall of the Shadow Banking System</h3></div><div class="paper-meta">sole author &nbsp;—&nbsp; Moody&#x27;s Economy.com, July 2008</div><div class="paper-note">His first widely-cited paper. No stable public host; circulates via secondary archives.</div></div>
+<div class="paper"><div class="paper-head"><span class="num">02</span><h3 class="paper-title">Shadow Banking</h3></div><div class="paper-meta">with Tobias Adrian, Adam Ashcraft &amp; Hayley Boesky &nbsp;—&nbsp; FRBNY Staff Report No. 458, July 2010 (revised Feb 2012)</div><div class="paper-note">The paper that mapped the shadow banking system and shaped the post-crisis FSB agenda.</div><div class="paper-links"><a href="https://www.newyorkfed.org/research/staff_reports/sr458.html">NY Fed — overview</a> &nbsp;·&nbsp; <a href="https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr458.pdf">PDF (revised)</a> &nbsp;·&nbsp; <a href="https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr458_July_2010_version.pdf">PDF (original 2010)</a> &nbsp;·&nbsp; <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1645337">SSRN</a></div></div>
+<div class="paper"><div class="paper-head"><span class="num">03</span><h3 class="paper-title">Institutional Cash Pools and the Triffin Dilemma of the U.S. Banking System</h3></div><div class="paper-meta">sole author &nbsp;—&nbsp; IMF Working Paper No. 11/190, August 2011</div><div class="paper-note">Citation reference — distributed via IMF.org and the SSRN author page (see Profiles).</div></div>
+<div class="paper"><div class="paper-head"><span class="num">04</span><h3 class="paper-title">Shadow Banking: Economics and Policy</h3></div><div class="paper-meta">with Stijn Claessens, Lev Ratnovski &amp; Manmohan Singh &nbsp;—&nbsp; IMF Staff Discussion Note SDN/12/12, December 2012</div><div class="paper-note">The Fund&#x27;s framing of shadow-banking policy; the note itself is on IMF.org.</div><div class="paper-links"><a href="https://cepr.org/voxeu/columns/shadow-banking-economics-and-policy-priorities">VoxEU companion column</a></div></div>
+<div class="paper"><div class="paper-head"><span class="num">05</span><h3 class="paper-title">The Federal Reserve&#x27;s Term Asset-Backed Securities Loan Facility (TALF)</h3></div><div class="paper-meta">with Adam Ashcraft &amp; Allan Malz &nbsp;—&nbsp; FRBNY Economic Policy Review, Vol. 18, No. 3, November 2012</div><div class="paper-note">Citation reference — published in the New York Fed&#x27;s Economic Policy Review.</div></div>
+<div class="paper"><div class="paper-head"><span class="num">06</span><h3 class="paper-title">Shadow Banking (journal version)</h3></div><div class="paper-meta">with Tobias Adrian, Adam Ashcraft &amp; Hayley Boesky &nbsp;—&nbsp; FRBNY Economic Policy Review, Vol. 19, No. 2, December 2013</div><div class="paper-note">The peer-reviewed version of Staff Report 458.</div><div class="paper-links"><a href="https://ideas.repec.org/a/fip/fednep/00001.html">RePEc</a> &nbsp;·&nbsp; <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2378449">SSRN</a> &nbsp;·&nbsp; <a href="https://ypfsresourcelibrary.blob.core.windows.net/fcic/YPFS/Pozsar,%20Zoltan%20et%20al%20Shadow_Banking.pdf">PDF (YPFS library)</a></div></div>
+<div class="paper"><div class="paper-head"><span class="num">07</span><h3 class="paper-title">Shadow Banking: The Money View</h3></div><div class="paper-meta">sole author &nbsp;—&nbsp; OFR Working Paper 14-04, U.S. Treasury Office of Financial Research, July 2014</div><div class="paper-note">Introduces the “money view” and the hierarchy/matrix of money that underpins all his later work.</div><div class="paper-links"><a href="https://www.financialresearch.gov/working-papers/files/OFRwp2014-04_Pozsar_ShadowBankingTheMoneyView.pdf">PDF (OFR)</a> &nbsp;·&nbsp; <a href="https://ideas.repec.org/p/ofr/wpaper/14-04.html">RePEc</a> &nbsp;·&nbsp; <a href="https://exunoplures.hu/public/pdf/a-decade-on-money-6.pdf">Mirror (Ex Uno Plures)</a></div></div>
+<div class="paper"><div class="paper-head"><span class="num">08</span><h3 class="paper-title">How the Financial System Works</h3></div><div class="paper-meta">sole author &nbsp;—&nbsp; Appendix to “Shadow Banking: The Money View,” OFR / U.S. Treasury, July 2014</div><div class="paper-note">The companion slide deck: the four core institutions and the dealer eco-system.</div><div class="paper-links"><a href="https://www.financialresearch.gov/working-papers/files/OFRwp2014-04_Pozsar_ShadowBankingTheMoneyView_Attachment.pdf">PDF (OFR)</a></div></div>
+<div class="paper"><div class="paper-head"><span class="num">09</span><h3 class="paper-title">An Atlas of Money Flows in the Global Financial Ecosystem</h3></div><div class="paper-meta">sole author &nbsp;—&nbsp; U.S. Treasury / Office of Financial Research, 2014</div><div class="paper-note">Citation reference — a dynamic map of global funding flows.</div></div>
+<div class="paper"><div class="paper-head"><span class="num">10</span><h3 class="paper-title">Bagehot was a Shadow Banker</h3></div><div class="paper-meta">with Perry Mehrling, James Sweeney &amp; Daniel Neilson &nbsp;—&nbsp; Institute for New Economic Thinking (INET) Working Paper, November 2013</div><div class="paper-note">Citation reference — places shadow banking in the Bagehot / money-view tradition.</div></div>
+    </div>
+  </section>
+
+  <section id="voxeu">
+    <div class="sec-head"><span class="rn-big">II</span><h2>VoxEU Columns</h2></div>
+    <p class="sec-desc">Columns written for CEPR's VoxEU in a personal capacity, distilling the shadow-banking research. <span class="count">2 columns</span></p>
+    <div class="ledger">
+      <div class="entry"><span class="num">01</span><span class="title"><a href="https://cepr.org/voxeu/columns/shadow-banking-economics-and-policy-priorities">Shadow banking: Economics and policy priorities</a></span><span class="leader" aria-hidden="true"></span><span class="date">VoxEU</span></div>
+<div class="entry"><span class="num">02</span><span class="title"><a href="https://cepr.org/voxeu/columns/can-shadow-banking-be-addressed-without-balance-sheet-sovereign">Can shadow banking be addressed without the balance sheet of the sovereign?</a></span><span class="leader" aria-hidden="true"></span><span class="date">VoxEU</span></div>
+    </div>
+  </section>
+
+  <section id="gmn">
+    <div class="sec-head"><span class="rn-big">III</span><h2>Global Money Notes</h2></div>
+    <p class="sec-desc">The Credit Suisse research that made his name &mdash; money-market plumbing, the repo crisis, and the 2022 <em>Bretton Woods III</em> framework. Hosted in full on his firm's archive. <span class="count">42 notes</span></p>
+    <div class="ledger">
+      <div class="entry"><span class="num">1</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-9.pdf">The Money Market Under Government Control</a></span><span class="leader" aria-hidden="true"></span><span class="date">May 7, 2015</span></div>
+<div class="entry"><span class="num">2</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-10.pdf">A Turbulent Exit</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 28, 2015</span></div>
+<div class="entry"><span class="num">3</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-11.pdf">Flying Blind</a></span><span class="leader" aria-hidden="true"></span><span class="date">Dec 16, 2015</span></div>
+<div class="entry"><span class="num">4</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-12.pdf">A Tool of Their Own</a></span><span class="leader" aria-hidden="true"></span><span class="date">Feb 7, 2016</span></div>
+<div class="entry"><span class="num">5</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-13.pdf">What Excess Reserves?</a></span><span class="leader" aria-hidden="true"></span><span class="date">Apr 13, 2016</span></div>
+<div class="entry"><span class="num">6</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-14.pdf">QE, Basel III and the Fed’s New Target Rate</a></span><span class="leader" aria-hidden="true"></span><span class="date">Jun 10, 2016</span></div>
+<div class="entry"><span class="num">7</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-15.pdf">Japanese Banks, LIBOR and the FX Swap Lines</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 3, 2016</span></div>
+<div class="entry"><span class="num">8</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-16.pdf">From Exorbitant Privilege to Existential Trilemma</a></span><span class="leader" aria-hidden="true"></span><span class="date">Nov 18, 2016</span></div>
+<div class="entry"><span class="num">9</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-17.pdf">Excess Reserves and Global Dollar Funding</a></span><span class="leader" aria-hidden="true"></span><span class="date">Apr 11, 2017</span></div>
+<div class="entry"><span class="num">10</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-18.pdf">Sterilization and the Fracking of Reserves</a></span><span class="leader" aria-hidden="true"></span><span class="date">Sep 1, 2017</span></div>
+<div class="entry"><span class="num">11</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-19.pdf">Repatriation, the Echo-Taper and the €/$ Basis</a></span><span class="leader" aria-hidden="true"></span><span class="date">Jan 29, 2018</span></div>
+<div class="entry"><span class="num">12</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-20.pdf">BEAT, FRA-OIS and the Cross-Currency Basis</a></span><span class="leader" aria-hidden="true"></span><span class="date">Mar 22, 2018</span></div>
+<div class="entry"><span class="num">13</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-21.pdf">Beyond the Outer Rim</a></span><span class="leader" aria-hidden="true"></span><span class="date">Apr 13, 2018</span></div>
+<div class="entry"><span class="num">14</span><span class="title"><a href="https://exunoplures.hu/public/pdf/The_Safe_Asset_Glut.pdf">The Safe Asset Glut</a></span><span class="leader" aria-hidden="true"></span><span class="date">May 30, 2018</span></div>
+<div class="entry"><span class="num">15</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-23.pdf">Monetary Policy with Excess Collateral</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 13, 2018</span></div>
+<div class="entry"><span class="num">16</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-24.pdf">Taper and the “Mix-Capacity-Target” Trinity</a></span><span class="leader" aria-hidden="true"></span><span class="date">Sep 13, 2018</span></div>
+<div class="entry"><span class="num">17</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-25.pdf">The Crapo Act and the Target Rate</a></span><span class="leader" aria-hidden="true"></span><span class="date">Sep 26, 2018</span></div>
+<div class="entry"><span class="num">18</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-26.pdf">Fed Funds and the Market for Intraday Liquidity</a></span><span class="leader" aria-hidden="true"></span><span class="date">Oct 26, 2018</span></div>
+<div class="entry"><span class="num">19</span><span class="title">Libor-OIS: A Morbidity Review <span class="flag">not posted</span></span><span class="leader" aria-hidden="true"></span><span class="date">Nov 27, 2018</span></div>
+<div class="entry"><span class="num">20</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-27.pdf">Lost in Transmission</a></span><span class="leader" aria-hidden="true"></span><span class="date">Feb 15, 2019</span></div>
+<div class="entry"><span class="num">21</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-28.pdf">It’s Time to Use the Exorbitant Privilege</a></span><span class="leader" aria-hidden="true"></span><span class="date">Mar 25, 2019</span></div>
+<div class="entry"><span class="num">22</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-29.pdf">Collateral Supply and o/n Rates</a></span><span class="leader" aria-hidden="true"></span><span class="date">May 31, 2019</span></div>
+<div class="entry"><span class="num">23</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-30.pdf">The Revenge of the Plumbing</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 12, 2019</span></div>
+<div class="entry"><span class="num">24</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-31.pdf">Sagittarius A*</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 21, 2019</span></div>
+<div class="entry"><span class="num">25</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-32.pdf">Design Options for an o/n Repo Facility</a></span><span class="leader" aria-hidden="true"></span><span class="date">Sep 9, 2019</span></div>
+<div class="entry"><span class="num">26</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-33.pdf">Countdown to QE4?</a></span><span class="leader" aria-hidden="true"></span><span class="date">Dec 9, 2019</span></div>
+<div class="entry"><span class="num">27</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-34.pdf">Covid-19 and Global Dollar Funding</a></span><span class="leader" aria-hidden="true"></span><span class="date">Mar 3, 2020</span></div>
+<div class="entry"><span class="num">28</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-35.pdf">Lombard Street and Pandemics</a></span><span class="leader" aria-hidden="true"></span><span class="date">Mar 17, 2020</span></div>
+<div class="entry"><span class="num">29</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-36.pdf">U.S. Dollar Libor and War Finance</a></span><span class="leader" aria-hidden="true"></span><span class="date">Apr 14, 2020</span></div>
+<div class="entry"><span class="num">30</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-37.pdf">Singularity</a></span><span class="leader" aria-hidden="true"></span><span class="date">May 14, 2020</span></div>
+<div class="entry"><span class="num">31</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-38.pdf">U.S. Dollar Libor and Swap Line Rollovers</a></span><span class="leader" aria-hidden="true"></span><span class="date">Jun 11, 2020</span></div>
+<div class="entry"><span class="num">32</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-39.pdf">Bretton Woods III</a></span><span class="leader" aria-hidden="true"></span><span class="date">Mar 7, 2022</span></div>
+<div class="entry"><span class="num">33</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-40.pdf">Money, Commodities and Bretton Woods III</a></span><span class="leader" aria-hidden="true"></span><span class="date">Mar 31, 2022</span></div>
+<div class="entry"><span class="num">34</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-42.pdf">Lombard Street and Commodities</a></span><span class="leader" aria-hidden="true"></span><span class="date">Apr 4, 2022</span></div>
+<div class="entry"><span class="num">35</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-41.pdf">The Big $hort</a></span><span class="leader" aria-hidden="true"></span><span class="date">Apr 12, 2022</span></div>
+<div class="entry"><span class="num">36</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-43.pdf">Ride of the “Volkyries”</a></span><span class="leader" aria-hidden="true"></span><span class="date">May 13, 2022</span></div>
+<div class="entry"><span class="num">37</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-44.pdf">War and Interest Rates</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 1, 2022</span></div>
+<div class="entry"><span class="num">38</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-45.pdf">War and Industrial Policy</a></span><span class="leader" aria-hidden="true"></span><span class="date">Aug 24, 2022</span></div>
+<div class="entry"><span class="num">39</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-46.pdf">Oil, Gold and LCLo(SP)R</a></span><span class="leader" aria-hidden="true"></span><span class="date">Dec 5, 2022</span></div>
+<div class="entry"><span class="num">40</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-47.pdf">War and Commodity Encumbrance</a></span><span class="leader" aria-hidden="true"></span><span class="date">Dec 27, 2022</span></div>
+<div class="entry"><span class="num">41</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-48.pdf">War and Currency Statecraft</a></span><span class="leader" aria-hidden="true"></span><span class="date">Dec 29, 2022</span></div>
+<div class="entry"><span class="num">42</span><span class="title"><a href="https://exunoplures.hu/public/pdf/a-decade-on-money-49.pdf">War and Peace</a></span><span class="leader" aria-hidden="true"></span><span class="date">Jan 6, 2023</span></div>
+    </div>
+  </section>
+
+  <section id="mwo">
+    <div class="sec-head"><span class="rn-big">IV</span><h2>Money and World Order</h2></div>
+    <p class="sec-desc">Ex Uno Plures research on geopolitics, commodities, gold and the reshaping of the monetary order. <span class="count">44 pieces &middot; 2023&ndash;2026</span></p>
+    <div class="sec-note">Subscriber research. Titles and dates are listed for reference; full notes are available to Ex Uno Plures clients.</div>
+    <div class="ledger">
+      <div class="entry"><span class="num">1</span><span class="title">A Monetary Pincer Movement</span><span class="leader" aria-hidden="true"></span><span class="date">September 18, 2023</span></div>
+<div class="entry"><span class="num">2</span><span class="title">Discounting World Order</span><span class="leader" aria-hidden="true"></span><span class="date">October 7, 2023</span></div>
+<div class="entry"><span class="num">3</span><span class="title">Vigilantes to Somnambulls</span><span class="leader" aria-hidden="true"></span><span class="date">October 13, 2023</span></div>
+<div class="entry"><span class="num">4</span><span class="title">On the Verge of QE and a Gold Spike</span><span class="leader" aria-hidden="true"></span><span class="date">October 18, 2023</span></div>
+<div class="entry"><span class="num">5</span><span class="title">War and the Term Premium</span><span class="leader" aria-hidden="true"></span><span class="date">November 6, 2023</span></div>
+<div class="entry"><span class="num">6</span><span class="title">A Hard Landing Without a Shock?</span><span class="leader" aria-hidden="true"></span><span class="date">December 1, 2023</span></div>
+<div class="entry"><span class="num">7</span><span class="title">War on the Red Sea</span><span class="leader" aria-hidden="true"></span><span class="date">January 23, 2024</span></div>
+<div class="entry"><span class="num">8</span><span class="title">Gold, QT and Waller’s Pivot</span><span class="leader" aria-hidden="true"></span><span class="date">March 10, 2024</span></div>
+<div class="entry"><span class="num">9</span><span class="title">Belgrade, 1979 and Forward Macro</span><span class="leader" aria-hidden="true"></span><span class="date">April 21, 2024</span></div>
+<div class="entry"><span class="num">10</span><span class="title">The End of Discipline</span><span class="leader" aria-hidden="true"></span><span class="date">May 8, 2024</span></div>
+<div class="entry"><span class="num">11</span><span class="title">Commodities, Rates and Reason</span><span class="leader" aria-hidden="true"></span><span class="date">June 4, 2024</span></div>
+<div class="entry"><span class="num">12</span><span class="title">Peace, Bok Choy and Kissinger’s Ghost</span><span class="leader" aria-hidden="true"></span><span class="date">June 6, 2024</span></div>
+<div class="entry"><span class="num">13</span><span class="title">Thunderstruck</span><span class="leader" aria-hidden="true"></span><span class="date">June 8, 2024</span></div>
+<div class="entry"><span class="num">14</span><span class="title">The Mar-a-Lago Accord</span><span class="leader" aria-hidden="true"></span><span class="date">June 14, 2024</span></div>
+<div class="entry"><span class="num">15</span><span class="title">Trump’s Three Arrows</span><span class="leader" aria-hidden="true"></span><span class="date">July 22, 2024</span></div>
+<div class="entry"><span class="num">16</span><span class="title">War and the Three-Body Problem</span><span class="leader" aria-hidden="true"></span><span class="date">August 25, 2024</span></div>
+<div class="entry"><span class="num">17</span><span class="title">Monetary Politics and Fiscal Revolution</span><span class="leader" aria-hidden="true"></span><span class="date">September 18, 2024</span></div>
+<div class="entry"><span class="num">18</span><span class="title">Rates and an Oil Short Squeeze</span><span class="leader" aria-hidden="true"></span><span class="date">September 24, 2024</span></div>
+<div class="entry"><span class="num">19</span><span class="title">Doubling Down</span><span class="leader" aria-hidden="true"></span><span class="date">September 26, 2024</span></div>
+<div class="entry"><span class="num">20</span><span class="title">To Err Is Human, to Ease Divine</span><span class="leader" aria-hidden="true"></span><span class="date">October 4, 2024</span></div>
+<div class="entry"><span class="num">21</span><span class="title">There Will Be Blood</span><span class="leader" aria-hidden="true"></span><span class="date">October 4, 2024</span></div>
+<div class="entry"><span class="num">22</span><span class="title">The Longest Month</span><span class="leader" aria-hidden="true"></span><span class="date">October 10, 2024</span></div>
+<div class="entry"><span class="num">23</span><span class="title">Arrows and Boomerangs</span><span class="leader" aria-hidden="true"></span><span class="date">October 16, 2024</span></div>
+<div class="entry"><span class="num">24</span><span class="title">Sequencing the Trump Reboot</span><span class="leader" aria-hidden="true"></span><span class="date">November 7, 2024</span></div>
+<div class="entry"><span class="num">25</span><span class="title">High Noon at the U.S. Treasury</span><span class="leader" aria-hidden="true"></span><span class="date">January 8, 2025</span></div>
+<div class="entry"><span class="num">26</span><span class="title">Sequencing Pain</span><span class="leader" aria-hidden="true"></span><span class="date">March 3, 2025</span></div>
+<div class="entry"><span class="num">27</span><span class="title">Negotiating Pain</span><span class="leader" aria-hidden="true"></span><span class="date">April 4, 2025</span></div>
+<div class="entry"><span class="num">28</span><span class="title">Carney, Dimon and Trade 2.0</span><span class="leader" aria-hidden="true"></span><span class="date">April 16, 2025</span></div>
+<div class="entry"><span class="num">29</span><span class="title">Through a Glass Darkly</span><span class="leader" aria-hidden="true"></span><span class="date">May 5, 2025</span></div>
+<div class="entry"><span class="num">30</span><span class="title">Deeper Is Longer</span><span class="leader" aria-hidden="true"></span><span class="date">May 23, 2025</span></div>
+<div class="entry"><span class="num">31</span><span class="title">The Commonwealth Fund</span><span class="leader" aria-hidden="true"></span><span class="date">May 27, 2025</span></div>
+<div class="entry"><span class="num">32</span><span class="title">Pieces of a Mosaic</span><span class="leader" aria-hidden="true"></span><span class="date">July 10, 2025</span></div>
+<div class="entry"><span class="num">33</span><span class="title">The Deal of the Century</span><span class="leader" aria-hidden="true"></span><span class="date">July 28, 2025</span></div>
+<div class="entry"><span class="num">34</span><span class="title">Breaking the BRICS and the Bullion Broker</span><span class="leader" aria-hidden="true"></span><span class="date">August 17, 2025</span></div>
+<div class="entry"><span class="num">35</span><span class="title">The Pentagon’s SWF</span><span class="leader" aria-hidden="true"></span><span class="date">August 24, 2025</span></div>
+<div class="entry"><span class="num">36</span><span class="title">The Terms of the Commonwealth Fund</span><span class="leader" aria-hidden="true"></span><span class="date">September 8, 2025</span></div>
+<div class="entry"><span class="num">37</span><span class="title">Gold and the Lomonosov Ridge</span><span class="leader" aria-hidden="true"></span><span class="date">January 12, 2026</span></div>
+<div class="entry"><span class="num">38</span><span class="title">A New Axis of Resistance</span><span class="leader" aria-hidden="true"></span><span class="date">January 21, 2026</span></div>
+<div class="entry"><span class="num">39</span><span class="title">ASEAN, Busan and a Petit Coup de Soju</span><span class="leader" aria-hidden="true"></span><span class="date">January 29, 2026</span></div>
+<div class="entry"><span class="num">40</span><span class="title">Physical QE and Gold</span><span class="leader" aria-hidden="true"></span><span class="date">March 13, 2026</span></div>
+<div class="entry"><span class="num">41</span><span class="title">The Wright Put ≠ Equity Put</span><span class="leader" aria-hidden="true"></span><span class="date">March 15, 2026</span></div>
+<div class="entry"><span class="num">42</span><span class="title">Energy Markets Don’t Overshoot</span><span class="leader" aria-hidden="true"></span><span class="date">March 19, 2026</span></div>
+<div class="entry"><span class="num">43</span><span class="title">Kill the Chicken to Scare the Monkey</span><span class="leader" aria-hidden="true"></span><span class="date">March 20, 2026</span></div>
+<div class="entry"><span class="num">44</span><span class="title">E Pluribus Unum</span><span class="leader" aria-hidden="true"></span><span class="date">April 20, 2026</span></div>
+    </div>
+  </section>
+
+  <section id="mbb">
+    <div class="sec-head"><span class="rn-big">V</span><h2>Money, Banks and Bases</h2></div>
+    <p class="sec-desc">Ex Uno Plures research on the U.S. money-market plumbing &mdash; reserves, repo, the TGA, QT and the Fed's balance sheet. <span class="count">60 pieces &middot; 2023&ndash;2026</span></p>
+    <div class="sec-note">Subscriber research. Titles and dates are listed for reference; full notes are available to Ex Uno Plures clients.</div>
+    <div class="ledger">
+      <div class="entry"><span class="num">1</span><span class="title">Schrödinger’s Cat and LCLoR</span><span class="leader" aria-hidden="true"></span><span class="date">July 14, 2023</span></div>
+<div class="entry"><span class="num">2</span><span class="title">Fiscal Policy, QT and LCLoR</span><span class="leader" aria-hidden="true"></span><span class="date">July 24, 2023</span></div>
+<div class="entry"><span class="num">3</span><span class="title">M2 and the Fiscal Slingshot</span><span class="leader" aria-hidden="true"></span><span class="date">August 11, 2023</span></div>
+<div class="entry"><span class="num">4</span><span class="title">M2 and QT Under the Hood</span><span class="leader" aria-hidden="true"></span><span class="date">September 3, 2023</span></div>
+<div class="entry"><span class="num">5</span><span class="title">The Great Refill</span><span class="leader" aria-hidden="true"></span><span class="date">December 13, 2023</span></div>
+<div class="entry"><span class="num">6</span><span class="title">Shipping Lanes and o/n Repo</span><span class="leader" aria-hidden="true"></span><span class="date">December 18, 2023</span></div>
+<div class="entry"><span class="num">7</span><span class="title">LCLoR and o/n Repo Pressures</span><span class="leader" aria-hidden="true"></span><span class="date">January 1, 2024</span></div>
+<div class="entry"><span class="num">8</span><span class="title">The FRBNY’s Turn to Pivot</span><span class="leader" aria-hidden="true"></span><span class="date">January 7, 2024</span></div>
+<div class="entry"><span class="num">9</span><span class="title">Countdown to QE5</span><span class="leader" aria-hidden="true"></span><span class="date">January 28, 2024</span></div>
+<div class="entry"><span class="num">10</span><span class="title">On NYCB’s Liquidity Position</span><span class="leader" aria-hidden="true"></span><span class="date">February 11, 2024</span></div>
+<div class="entry"><span class="num">11</span><span class="title">Repo Rates an Octave Lower</span><span class="leader" aria-hidden="true"></span><span class="date">February 28, 2024</span></div>
+<div class="entry"><span class="num">12</span><span class="title">Reshuffling the Deck</span><span class="leader" aria-hidden="true"></span><span class="date">March 15, 2024</span></div>
+<div class="entry"><span class="num">13</span><span class="title">A New CIO Gets to Work</span><span class="leader" aria-hidden="true"></span><span class="date">March 26, 2024</span></div>
+<div class="entry"><span class="num">14</span><span class="title">Another One Bites the Dust</span><span class="leader" aria-hidden="true"></span><span class="date">April 28, 2024</span></div>
+<div class="entry"><span class="num">15</span><span class="title">Repo and the Fed in a Corner</span><span class="leader" aria-hidden="true"></span><span class="date">July 19, 2024</span></div>
+<div class="entry"><span class="num">16</span><span class="title">Repo and Dudley’s Pivot</span><span class="leader" aria-hidden="true"></span><span class="date">July 28, 2024</span></div>
+<div class="entry"><span class="num">17</span><span class="title">The End of Data Dependence</span><span class="leader" aria-hidden="true"></span><span class="date">August 4, 2024</span></div>
+<div class="entry"><span class="num">18</span><span class="title">Repo and a Glass of Porto</span><span class="leader" aria-hidden="true"></span><span class="date">October 2, 2024</span></div>
+<div class="entry"><span class="num">19</span><span class="title">Trump and Financial Realpolitik</span><span class="leader" aria-hidden="true"></span><span class="date">October 23, 2024</span></div>
+<div class="entry"><span class="num">20</span><span class="title">Whatever It Takes</span><span class="leader" aria-hidden="true"></span><span class="date">October 31, 2024</span></div>
+<div class="entry"><span class="num">21</span><span class="title">Cheating on Cinderella</span><span class="leader" aria-hidden="true"></span><span class="date">December 18, 2024</span></div>
+<div class="entry"><span class="num">22</span><span class="title">Going DOGE on the Plumbing</span><span class="leader" aria-hidden="true"></span><span class="date">January 13, 2025</span></div>
+<div class="entry"><span class="num">23</span><span class="title">Gilded QE</span><span class="leader" aria-hidden="true"></span><span class="date">January 15, 2025</span></div>
+<div class="entry"><span class="num">24</span><span class="title">The Century Bond</span><span class="leader" aria-hidden="true"></span><span class="date">January 20, 2025</span></div>
+<div class="entry"><span class="num">25</span><span class="title">Interstate Buybacks, FX Swaps and Eurodollars</span><span class="leader" aria-hidden="true"></span><span class="date">January 30, 2025</span></div>
+<div class="entry"><span class="num">26</span><span class="title">Don’t Fight Secretary Bessent</span><span class="leader" aria-hidden="true"></span><span class="date">February 7, 2025</span></div>
+<div class="entry"><span class="num">27</span><span class="title">Gold Revaluation and the Law</span><span class="leader" aria-hidden="true"></span><span class="date">February 18, 2025</span></div>
+<div class="entry"><span class="num">28</span><span class="title">Tariffs, Repo and Swaps</span><span class="leader" aria-hidden="true"></span><span class="date">March 5, 2025</span></div>
+<div class="entry"><span class="num">29</span><span class="title">The Bessent Put</span><span class="leader" aria-hidden="true"></span><span class="date">April 9, 2025</span></div>
+<div class="entry"><span class="num">30</span><span class="title">The Lutnick Crash</span><span class="leader" aria-hidden="true"></span><span class="date">April 11, 2025</span></div>
+<div class="entry"><span class="num">31</span><span class="title">The East Asia Fix</span><span class="leader" aria-hidden="true"></span><span class="date">May 17, 2025</span></div>
+<div class="entry"><span class="num">32</span><span class="title">On TGA Refill, the QRA and Wallerspeak</span><span class="leader" aria-hidden="true"></span><span class="date">July 17, 2025</span></div>
+<div class="entry"><span class="num">33</span><span class="title">Escape from Alcatraz</span><span class="leader" aria-hidden="true"></span><span class="date">July 22, 2025</span></div>
+<div class="entry"><span class="num">34</span><span class="title">Cut Like a Ninja: Volume 1</span><span class="leader" aria-hidden="true"></span><span class="date">July 31, 2025</span></div>
+<div class="entry"><span class="num">35</span><span class="title">Cut Like a Ninja: Volume 2</span><span class="leader" aria-hidden="true"></span><span class="date">August 28, 2025</span></div>
+<div class="entry"><span class="num">36</span><span class="title">A Key Square and the FOMC</span><span class="leader" aria-hidden="true"></span><span class="date">August 31, 2025</span></div>
+<div class="entry"><span class="num">37</span><span class="title">Sprinting out of Jail</span><span class="leader" aria-hidden="true"></span><span class="date">September 4, 2025</span></div>
+<div class="entry"><span class="num">38</span><span class="title">The Treasury Market Footprint of G-SIBs</span><span class="leader" aria-hidden="true"></span><span class="date">October 7, 2025</span></div>
+<div class="entry"><span class="num">39</span><span class="title">From Whale to Shale to SAFE</span><span class="leader" aria-hidden="true"></span><span class="date">October 10, 2025</span></div>
+<div class="entry"><span class="num">40</span><span class="title">Whale Watching and QT</span><span class="leader" aria-hidden="true"></span><span class="date">November 3, 2025</span></div>
+<div class="entry"><span class="num">41</span><span class="title">Anthropology, Topography and STIR</span><span class="leader" aria-hidden="true"></span><span class="date">November 8, 2025</span></div>
+<div class="entry"><span class="num">42</span><span class="title">20,000 Leagues Under the LCLoR</span><span class="leader" aria-hidden="true"></span><span class="date">November 24, 2025</span></div>
+<div class="entry"><span class="num">43</span><span class="title">The Monetary Messiah</span><span class="leader" aria-hidden="true"></span><span class="date">November 26, 2025</span></div>
+<div class="entry"><span class="num">44</span><span class="title">Save the Best for Last</span><span class="leader" aria-hidden="true"></span><span class="date">December 23, 2025</span></div>
+<div class="entry"><span class="num">45</span><span class="title">War Footing and No War Finance?</span><span class="leader" aria-hidden="true"></span><span class="date">January 8, 2026</span></div>
+<div class="entry"><span class="num">46</span><span class="title">Gold, Golf and Outsiders</span><span class="leader" aria-hidden="true"></span><span class="date">January 9, 2026</span></div>
+<div class="entry"><span class="num">47</span><span class="title">Wells Fargo Eats 50 Eggs!</span><span class="leader" aria-hidden="true"></span><span class="date">January 15, 2026</span></div>
+<div class="entry"><span class="num">48</span><span class="title">Loud and Clear</span><span class="leader" aria-hidden="true"></span><span class="date">January 17, 2026</span></div>
+<div class="entry"><span class="num">49</span><span class="title">On the $/¥ Intervention</span><span class="leader" aria-hidden="true"></span><span class="date">January 26, 2026</span></div>
+<div class="entry"><span class="num">50</span><span class="title">Habemus Papam</span><span class="leader" aria-hidden="true"></span><span class="date">January 30, 2026</span></div>
+<div class="entry"><span class="num">51</span><span class="title">Pope Joan, Chair Dowk and FX</span><span class="leader" aria-hidden="true"></span><span class="date">February 1, 2026</span></div>
+<div class="entry"><span class="num">52</span><span class="title">Wargaming the Department of Warsh</span><span class="leader" aria-hidden="true"></span><span class="date">February 6, 2026</span></div>
+<div class="entry"><span class="num">53</span><span class="title">Choosing a Seat for a Chair</span><span class="leader" aria-hidden="true"></span><span class="date">March 3, 2026</span></div>
+<div class="entry"><span class="num">54</span><span class="title">Interest on the TGA or Intraday TGA?</span><span class="leader" aria-hidden="true"></span><span class="date">April 3, 2026</span></div>
+<div class="entry"><span class="num">55</span><span class="title">Liquidity Reform at the Treasury</span><span class="leader" aria-hidden="true"></span><span class="date">April 14, 2026</span></div>
+<div class="entry"><span class="num">56</span><span class="title">J.P. Morgan’s Trash and Citibank’s Treasure</span><span class="leader" aria-hidden="true"></span><span class="date">April 17, 2026</span></div>
+<div class="entry"><span class="num">57</span><span class="title">How to Shrink the Fed’s Balance Sheet?</span><span class="leader" aria-hidden="true"></span><span class="date">May 11, 2026</span></div>
+<div class="entry"><span class="num">58</span><span class="title">Principles for Shrinking the Balance Sheet</span><span class="leader" aria-hidden="true"></span><span class="date">May 12, 2026</span></div>
+<div class="entry"><span class="num">59</span><span class="title">貸借対照表 折り紙</span><span class="leader" aria-hidden="true"></span><span class="date">May 14, 2026</span></div>
+<div class="entry"><span class="num">60</span><span class="title">True North</span><span class="leader" aria-hidden="true"></span><span class="date">June 11, 2026</span></div>
+    </div>
+  </section>
+
+  <section id="gmd">
+    <div class="sec-head"><span class="rn-big">VI</span><h2>Global Money Dispatch</h2></div>
+    <p class="sec-desc">A planned section on his firm's archive for the Credit Suisse <em>Dispatch</em> series. <span class="count">Announced &mdash; not yet posted</span></p>
+    <div class="sec-note">Listed by Ex Uno Plures as &ldquo;Coming soon.&rdquo; Until posted, the daily <em>Dispatch</em> pieces circulate only via secondary archives (see Section VIII).</div>
+  </section>
+
+  <section id="profiles">
+    <div class="sec-head"><span class="rn-big">VII</span><h2>Profiles &amp; Archives</h2></div>
+    <p class="sec-desc">Where to find aggregated indexes of his work and ongoing research. <span class="count">5 sources</span></p>
+    <div class="ledger">
+      <div class="entry plain-link"><span class="title"><a href="https://exunoplures.hu">Ex Uno Plures — his research firm &amp; master archive</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://privpapers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=1930453">SSRN — author page</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://www.semanticscholar.org/author/Zoltan-Pozsar/119328229">Semantic Scholar — author page</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://cepr.org/about/people/zoltan-pozsar">CEPR / VoxEU — contributor profile</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://exunoplures.hu/in-the-press">Ex Uno Plures — press &amp; interview archive</a></span></div>
+    </div>
+  </section>
+
+  <section id="secondary">
+    <div class="sec-head"><span class="rn-big">VIII</span><h2>Compilations &amp; Interviews</h2></div>
+    <p class="sec-desc">Third-party compilations, mirrored originals, and on-the-record interviews. <span class="count">4 items</span></p>
+    <div class="ledger">
+      <div class="entry plain-link"><span class="title"><a href="https://www.scribd.com/document/499284953/Zoltan-Pozsar-Global-Money-Notes-1-31-2015-2020">Global Money Notes #1–31 (2015–2020) — community compilation</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://static.bullionstar.com/blogs/uploads/2022/03/Bretton-Woods-III-Zoltan-Pozsar.pdf">Bretton Woods III (original note, mirrored)</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://som.yale.edu/sites/default/files/2024-01/Zoltan%20Pozsar.pdf">Lessons Learned: Zoltan Pozsar — Yale oral-history interview (PDF)</a></span></div>
+<div class="entry plain-link"><span class="title"><a href="https://ideas.repec.org/a/ysm/ypfsfc/v5y2023i4p40-42.html">Lessons Learned — Journal of Financial Crises record</a></span></div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Sources.</b> Primary catalogue from Ex Uno Plures (exunoplures.hu); papers from the New York Fed, IMF, U.S. Treasury OFR, SSRN, RePEc and CEPR. Links verified June 2026.</p>
+    <p><b>Notes.</b> The Credit Suisse <em>Global Money Notes</em> and <em>Dispatch</em> were internal client research, never formally published; the Ex Uno Plures archive and the mirrors above are the practical way to read them. Items marked citation-only have no stable public file. His 2008 Moody's paper is difficult to find in original form.</p>
+    <p>Reference document &middot; not affiliated with Zoltan Pozsar or Ex Uno Plures.</p>
+  </footer>
+
+</div>
+</body>
+</html>

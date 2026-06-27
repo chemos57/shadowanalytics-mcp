@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix="pozsar-mcp-smoke-") as tmp:
     binary = package_root / "bin" / "pozsar-mcp"
 
     require(binary.is_file(), f"missing packaged binary: {binary}")
-    for required_path in ["README.md", "LICENSE", "CHANGELOG.md", "docs", "eval/fixtures/pozsar_eval.json"]:
+    for required_path in ["README.md", "LICENSE", "CHANGELOG.md", "Zoltan-Pozsar-Bibliography.html", "docs", "docs/SOURCE_MAP.md", "eval/fixtures/pozsar_eval.json"]:
         require((package_root / required_path).exists(), f"missing packaged file: {required_path}")
 
     version = subprocess.run(
