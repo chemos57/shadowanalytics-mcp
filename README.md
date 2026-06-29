@@ -4,6 +4,12 @@ Rust tooling for building a local, source-cited knowledge base from a Zoltan Poz
 
 The project is intentionally corpus-only. It does not include market data ingestion, trading signals, backtesting, portfolio management, broker adapters, exchange adapters, or execution code.
 
+## Why Pozsar
+
+Zoltan Pozsar's work is important because it connects macroeconomics to the balance-sheet plumbing that often drives markets: collateral, repo, eurodollars, FX swaps, reserves, shadow banking, safe assets, and commodity-linked money. His writing is useful for studying how liquidity moves through the financial system and why stress can appear outside the places covered by standard macro indicators.
+
+This project turns that corpus into a local, source-cited research layer so agents and analysts can retrieve the original passages behind a macro or liquidity question instead of relying on unsourced summaries.
+
 ## What It Does
 
 - Manifests local PDFs in `docs/`
@@ -28,7 +34,9 @@ data/knowledge/   Generated corpus artifacts; ignored by git
 
 ## Local PDF Inputs
 
-PDF files in `docs/` are ignored by git. [docs/SOURCE_MAP.md](docs/SOURCE_MAP.md) maps each PDF to the public source URL recorded in `Zoltan-Pozsar-Bibliography.html`, and `corpus download-sources` can rebuild the local PDF set.
+This repository does not redistribute Pozsar PDFs. PDF files in `docs/` are ignored by git and are excluded from release archives. Users rebuild the local corpus by downloading the documents from public source links recorded in [docs/SOURCE_MAP.md](docs/SOURCE_MAP.md) and `Zoltan-Pozsar-Bibliography.html`.
+
+`corpus download-sources` can rebuild the local PDF set, and `corpus verify-sources` checks local PDF hashes and source URLs before corpus generation.
 
 See [docs/README.md](docs/README.md) for details.
 
@@ -181,6 +189,12 @@ For example MCP prompts and a sample eval report, see [docs/EXAMPLES.md](docs/EX
 For the full maintainer release flow, see [RELEASE.md](RELEASE.md).
 
 Before public publishing, complete [docs/PUBLICATION_CHECKLIST.md](docs/PUBLICATION_CHECKLIST.md), especially the PDF redistribution review.
+
+## License
+
+This project's source code and documentation are distributed under the MIT License; see [LICENSE](LICENSE).
+
+The Pozsar PDFs are not distributed by this repository or release packages. They are downloaded by users from public source URLs listed in [docs/SOURCE_MAP.md](docs/SOURCE_MAP.md), and those documents remain subject to their original publishers' terms.
 
 ## Development Checks
 
