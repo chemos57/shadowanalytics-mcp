@@ -13,5 +13,7 @@ anyhow.workspace = true
 clap.workspace = true
 pozsar-kb = { path = "../pozsar-kb" }
 pozsar-mcp = { path = "../pozsar-mcp" }
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true

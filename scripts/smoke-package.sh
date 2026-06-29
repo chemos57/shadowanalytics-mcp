@@ -64,6 +64,7 @@ with tempfile.TemporaryDirectory(prefix="pozsar-mcp-smoke-") as tmp:
     require(binary.is_file(), f"missing packaged binary: {binary}")
     for required_path in ["README.md", "LICENSE", "CHANGELOG.md", "Zoltan-Pozsar-Bibliography.html", "docs", "docs/SOURCE_MAP.md", "eval/fixtures/pozsar_eval.json"]:
         require((package_root / required_path).exists(), f"missing packaged file: {required_path}")
+    require(not list((package_root / "docs").glob("*.pdf")), "release package should not include PDF binaries")
 
     version = subprocess.run(
         [str(binary), "--version"],

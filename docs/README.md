@@ -1,10 +1,15 @@
 # PDF Corpus
 
-This directory contains source PDFs used by the Pozsar corpus pipeline.
+This directory contains source-map and documentation files for the Pozsar corpus pipeline.
 
-PDF files are tracked so the corpus can be rebuilt from the same source documents across machines. Before adding new PDFs to a public repository, confirm their redistribution terms.
+PDF files are ignored by git. Rebuild them locally from [SOURCE_MAP.md](SOURCE_MAP.md):
 
-See [SOURCE_MAP.md](SOURCE_MAP.md) for the public source URL and SHA-256 hash of each tracked PDF.
+```bash
+cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
+cargo run -p corpus-cli -- verify-sources --docs docs --bibliography Zoltan-Pozsar-Bibliography.html --source-map docs/SOURCE_MAP.md
+```
+
+See [SOURCE_MAP.md](SOURCE_MAP.md) for the public source URL and SHA-256 hash of each PDF.
 
 ```text
 docs/
@@ -20,4 +25,4 @@ cargo run -p corpus-cli -- build --docs docs --out data/knowledge
 cargo run -p corpus-cli -- inspect --out data/knowledge
 ```
 
-Generated artifacts under `data/knowledge/` are reproducible and ignored by git.
+Downloaded PDFs and generated artifacts under `data/knowledge/` are reproducible and ignored by git.

@@ -34,7 +34,13 @@ sed -n '1,220p' docs/PUBLICATION_CHECKLIST.md
 
 ## 2. Build And Validate The Corpus
 
-Build generated corpus artifacts from the tracked PDFs:
+Download local PDFs from the source map:
+
+```bash
+cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
+```
+
+Build generated corpus artifacts from the downloaded PDFs:
 
 ```bash
 cargo run -p corpus-cli -- build --docs docs --out data/knowledge
@@ -46,6 +52,15 @@ Inspect the generated corpus:
 cargo run -p corpus-cli -- inspect --out data/knowledge
 ```
 
+Verify PDF provenance against the bibliography and source map:
+
+```bash
+cargo run -p corpus-cli -- verify-sources \
+  --docs docs \
+  --bibliography Zoltan-Pozsar-Bibliography.html \
+  --source-map docs/SOURCE_MAP.md
+```
+
 Expected artifacts:
 
 ```text
@@ -54,7 +69,7 @@ data/knowledge/extracted_pages.jsonl
 data/knowledge/chunks/pozsar_chunks.jsonl
 ```
 
-Do not commit `data/knowledge/`; it is reproducible release/build output.
+Do not commit `docs/*.pdf` or `data/knowledge/`; both are reproducible release/build output.
 
 ## 3. Run Quality Gates
 
@@ -116,7 +131,7 @@ README.md
 LICENSE
 CHANGELOG.md
 Zoltan-Pozsar-Bibliography.html
-docs/
+docs/ excluding PDFs
 eval/fixtures/pozsar_eval.json
 ```
 
@@ -194,8 +209,10 @@ From a fresh clone, verify the documented path still works:
 ```bash
 git clone <repo-url> /tmp/pozsar-corpus-mcp-release-check
 cd /tmp/pozsar-corpus-mcp-release-check
+cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
 cargo run -p corpus-cli -- build --docs docs --out data/knowledge
 cargo run -p corpus-cli -- inspect --out data/knowledge
+cargo run -p corpus-cli -- verify-sources --docs docs --bibliography Zoltan-Pozsar-Bibliography.html --source-map docs/SOURCE_MAP.md
 cargo build --release -p pozsar-mcp
 target/release/pozsar-mcp --version
 ```

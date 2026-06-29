@@ -4,6 +4,7 @@
 /dev_docs/
 /eval/*.json
 /eval/local/
+/docs/*.pdf
 .DS_Store
 *.log
 .env

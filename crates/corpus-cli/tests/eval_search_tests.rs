@@ -620,6 +620,355 @@ fn eval_search_reports_category_summary() {
     assert!(stdout.contains("  uncategorized: 1/1 passed"));
 }
 
+#[test]
+fn verify_sources_passes_when_bibliography_docs_and_source_map_match() {
+    let fixture = source_fixture_dir("pass");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(docs.join("alpha.pdf"), b"alpha\n").unwrap();
+    std::fs::write(docs.join("beta file.pdf"), b"beta\n").unwrap();
+    let bibliography = fixture.join("bibliography.html");
+    std::fs::write(
+        &bibliography,
+        r#"<html>
+  <a href="https://example.test/public/alpha.pdf">Alpha</a>
+  <a href="https://example.test/public/beta%20file.pdf">Beta</a>
+</html>"#,
+    )
+    .unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        r#"# Source Map
+
+| Local PDF | Source | SHA-256 |
+|---|---|---|
+| `alpha.pdf` | <https://example.test/public/alpha.pdf> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+| `beta file.pdf` | <https://example.test/public/beta%20file.pdf> | `f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad` |
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "verify-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--bibliography",
+            bibliography.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("source verification"));
+    assert!(stdout.contains("docs_pdfs: 2"));
+    assert!(stdout.contains("bibliography_pdf_links: 2"));
+    assert!(stdout.contains("missing_pdfs: (none)"));
+    assert!(stdout.contains("extra_links: (none)"));
+    assert!(stdout.contains("source_map_url_mismatches: (none)"));
+    assert!(stdout.contains("hash_mismatches: (none)"));
+    assert!(stdout.contains("summary: PASS"));
+}
+
+#[test]
+fn verify_sources_fails_on_missing_extra_and_hash_mismatch() {
+    let fixture = source_fixture_dir("fail");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(docs.join("alpha.pdf"), b"changed\n").unwrap();
+    std::fs::write(docs.join("missing-from-bibliography.pdf"), b"local only\n").unwrap();
+    let bibliography = fixture.join("bibliography.html");
+    std::fs::write(
+        &bibliography,
+        r#"<html>
+  <a href="https://example.test/public/alpha.pdf">Alpha</a>
+  <a href="https://example.test/public/extra.pdf">Extra</a>
+</html>"#,
+    )
+    .unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        r#"# Source Map
+
+| `alpha.pdf` | <https://example.test/public/alpha.pdf> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "verify-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--bibliography",
+            bibliography.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("missing_pdfs: missing-from-bibliography.pdf"));
+    assert!(stdout.contains("extra_links: extra.pdf"));
+    assert!(stdout.contains("source_map_missing_entries: missing-from-bibliography.pdf"));
+    assert!(stdout.contains("hash_mismatches: alpha.pdf"));
+    assert!(stdout.contains("summary: FAIL"));
+}
+
+#[test]
+fn verify_sources_fails_when_source_map_url_does_not_match_bibliography() {
+    let fixture = source_fixture_dir("wrong_url");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(docs.join("alpha.pdf"), b"alpha\n").unwrap();
+    let bibliography = fixture.join("bibliography.html");
+    std::fs::write(
+        &bibliography,
+        r#"<html>
+  <a href="https://example.test/public/alpha.pdf">Alpha</a>
+</html>"#,
+    )
+    .unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        r#"# Source Map
+
+| Local PDF | Source | SHA-256 |
+|---|---|---|
+| `alpha.pdf` | <https://stale.example.test/public/alpha.pdf> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "verify-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--bibliography",
+            bibliography.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("missing_pdfs: (none)"));
+    assert!(stdout.contains("extra_links: (none)"));
+    assert!(stdout.contains("source_map_missing_entries: (none)"));
+    assert!(stdout.contains("source_map_url_mismatches: alpha.pdf"));
+    assert!(stdout.contains("hash_mismatches: (none)"));
+    assert!(stdout.contains("summary: FAIL"));
+}
+
+#[test]
+fn verify_sources_fails_when_source_map_hashes_are_swapped_between_pdfs() {
+    let fixture = source_fixture_dir("swapped");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(docs.join("alpha.pdf"), b"alpha\n").unwrap();
+    std::fs::write(docs.join("beta.pdf"), b"beta\n").unwrap();
+    let bibliography = fixture.join("bibliography.html");
+    std::fs::write(
+        &bibliography,
+        r#"<html>
+  <a href="https://example.test/public/alpha.pdf">Alpha</a>
+  <a href="https://example.test/public/beta.pdf">Beta</a>
+</html>"#,
+    )
+    .unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        r#"# Source Map
+
+| Local PDF | Source | SHA-256 |
+|---|---|---|
+| `alpha.pdf` | <https://example.test/public/alpha.pdf> | `f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad` |
+| `beta.pdf` | <https://example.test/public/beta.pdf> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "verify-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--bibliography",
+            bibliography.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("missing_pdfs: (none)"));
+    assert!(stdout.contains("extra_links: (none)"));
+    assert!(stdout.contains("source_map_missing_entries: (none)"));
+    assert!(stdout.contains("source_map_url_mismatches: (none)"));
+    assert!(stdout.contains("hash_mismatches: alpha.pdf, beta.pdf"));
+    assert!(stdout.contains("summary: FAIL"));
+}
+
+#[test]
+fn download_sources_downloads_missing_pdfs_from_source_map() {
+    let fixture = source_fixture_dir("download");
+    let source_dir = fixture.join("source");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&source_dir).unwrap();
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(source_dir.join("alpha.pdf"), b"alpha\n").unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        format!(
+            r#"# Source Map
+
+This prose mentions `.pdf` and `docs/*.pdf`, but those are not source rows.
+
+| Local PDF | Source | SHA-256 |
+|---|---|---|
+| `alpha.pdf` | <file://{}> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+"#,
+            source_dir.join("alpha.pdf").display()
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "download-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("source download"));
+    assert!(stdout.contains("sources: 1"));
+    assert!(stdout.contains("downloaded: 1"));
+    assert!(stdout.contains("skipped_existing: 0"));
+    assert!(stdout.contains("summary: PASS"));
+    assert_eq!(std::fs::read(docs.join("alpha.pdf")).unwrap(), b"alpha\n");
+}
+
+#[test]
+fn download_sources_refuses_to_overwrite_existing_mismatched_pdf_by_default() {
+    let fixture = source_fixture_dir("download_existing_mismatch");
+    let source_dir = fixture.join("source");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&source_dir).unwrap();
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(source_dir.join("alpha.pdf"), b"alpha\n").unwrap();
+    std::fs::write(docs.join("alpha.pdf"), b"wrong\n").unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        format!(
+            r#"# Source Map
+
+| Local PDF | Source | SHA-256 |
+|---|---|---|
+| `alpha.pdf` | <file://{}> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+"#,
+            source_dir.join("alpha.pdf").display()
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "download-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("existing hash mismatch for alpha.pdf"));
+    assert!(stdout.contains("summary: FAIL"));
+    assert_eq!(std::fs::read(docs.join("alpha.pdf")).unwrap(), b"wrong\n");
+}
+
+#[test]
+fn download_sources_overwrites_existing_mismatched_pdf_when_requested() {
+    let fixture = source_fixture_dir("download_overwrite");
+    let source_dir = fixture.join("source");
+    let docs = fixture.join("docs");
+    std::fs::create_dir_all(&source_dir).unwrap();
+    std::fs::create_dir_all(&docs).unwrap();
+    std::fs::write(source_dir.join("alpha.pdf"), b"alpha\n").unwrap();
+    std::fs::write(docs.join("alpha.pdf"), b"wrong\n").unwrap();
+    let source_map = fixture.join("SOURCE_MAP.md");
+    std::fs::write(
+        &source_map,
+        format!(
+            r#"# Source Map
+
+| Local PDF | Source | SHA-256 |
+|---|---|---|
+| `alpha.pdf` | <file://{}> | `b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060` |
+"#,
+            source_dir.join("alpha.pdf").display()
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "download-sources",
+            "--docs",
+            docs.to_str().unwrap(),
+            "--source-map",
+            source_map.to_str().unwrap(),
+            "--overwrite",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("downloaded: 1"));
+    assert!(stdout.contains("summary: PASS"));
+    assert_eq!(std::fs::read(docs.join("alpha.pdf")).unwrap(), b"alpha\n");
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -627,4 +976,15 @@ fn workspace_root() -> PathBuf {
         .parent()
         .unwrap()
         .to_path_buf()
+}
+
+fn source_fixture_dir(name: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!(
+        "pozsar_verify_sources_{}_{}",
+        name,
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&path);
+    std::fs::create_dir_all(&path).unwrap();
+    path
 }

@@ -1,15 +1,15 @@
 # PDF Source Map
 
-This document maps every tracked PDF corpus file under `docs/` to the public source link recorded in `Zoltan-Pozsar-Bibliography.html`.
+This document maps every local PDF corpus file under `docs/` to the public source link recorded in `Zoltan-Pozsar-Bibliography.html`.
 
 ## Proof Summary
 
-- Coverage check: `49` tracked `docs/*.pdf` files and `49` direct `.pdf` links in `Zoltan-Pozsar-Bibliography.html`.
-- Missing tracked PDFs from bibliography: none.
+- Coverage check: `49` local `docs/*.pdf` files and `49` direct `.pdf` links in `Zoltan-Pozsar-Bibliography.html`.
+- Missing local PDFs from bibliography: none.
 - Extra bibliography PDF links not present in `docs/`: none.
 - Evidence type: public source URL plus local SHA-256 hash.
 
-This proves that each tracked PDF was sourced from a public web URL listed in the bibliography. It does not by itself prove an open-source license or unrestricted redistribution grant for every document. Before public publishing, complete `docs/PUBLICATION_CHECKLIST.md`.
+This proves that each local PDF was sourced from a public web URL listed in the bibliography. It does not by itself prove an open-source license or unrestricted redistribution grant for every document. Before public publishing, complete `docs/PUBLICATION_CHECKLIST.md`.
 
 ## Source Categories
 
