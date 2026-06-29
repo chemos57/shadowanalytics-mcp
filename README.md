@@ -4,6 +4,12 @@ Rust tooling for building a local, source-cited knowledge base from a Zoltan Poz
 
 The project is intentionally corpus-only. It does not include market data ingestion, trading signals, backtesting, portfolio management, broker adapters, exchange adapters, or execution code.
 
+## Why Pozsar
+
+Zoltan Pozsar's work is important because it connects macroeconomics to the balance-sheet plumbing that often drives markets: collateral, repo, eurodollars, FX swaps, reserves, shadow banking, safe assets, and commodity-linked money. His writing is useful for studying how liquidity moves through the financial system and why stress can appear outside the places covered by standard macro indicators.
+
+This project turns that corpus into a local, source-cited research layer so agents and analysts can retrieve the original passages behind a macro or liquidity question instead of relying on unsourced summaries.
+
 ## What It Does
 
 - Manifests local PDFs in `docs/`
