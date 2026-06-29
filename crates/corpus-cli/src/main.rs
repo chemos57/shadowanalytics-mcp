@@ -12,9 +12,11 @@ use pozsar_mcp::research::{answer_research_question, ResearchQuestionBundle};
 use pozsar_mcp::search::{search_chunks_with_filters, SearchFilters};
 use pozsar_mcp::tools::ResearchQuestionParams;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Parser)]
 #[command(name = "corpus")]
@@ -55,6 +57,22 @@ enum Command {
         fail_fast: bool,
         #[arg(long)]
         output: Option<PathBuf>,
+    },
+    VerifySources {
+        #[arg(long, default_value = "docs")]
+        docs: PathBuf,
+        #[arg(long, default_value = "Zoltan-Pozsar-Bibliography.html")]
+        bibliography: PathBuf,
+        #[arg(long, default_value = "docs/SOURCE_MAP.md")]
+        source_map: PathBuf,
+    },
+    DownloadSources {
+        #[arg(long, default_value = "docs")]
+        docs: PathBuf,
+        #[arg(long, default_value = "docs/SOURCE_MAP.md")]
+        source_map: PathBuf,
+        #[arg(long, default_value_t = false)]
+        overwrite: bool,
     },
 }
 
@@ -126,6 +144,28 @@ fn main() -> Result<()> {
                 );
             }
         }
+        Command::VerifySources {
+            docs,
+            bibliography,
+            source_map,
+        } => {
+            let report = verify_sources(&docs, &bibliography, &source_map)?;
+            print_source_verification_report(&report);
+            if report.has_mismatches() {
+                bail!("source verification failed");
+            }
+        }
+        Command::DownloadSources {
+            docs,
+            source_map,
+            overwrite,
+        } => {
+            let report = download_sources(&docs, &source_map, overwrite)?;
+            print_source_download_report(&report);
+            if report.has_failures() {
+                bail!("source download failed");
+            }
+        }
     }
     Ok(())
 }
@@ -168,6 +208,444 @@ fn print_inspection_report(report: &CorpusInspection) {
             println!("  {}", issue);
         }
     }
+}
+
+#[derive(Debug)]
+struct SourceVerificationReport {
+    docs_pdf_count: usize,
+    bibliography_pdf_link_count: usize,
+    missing_pdfs: Vec<String>,
+    extra_links: Vec<String>,
+    source_map_missing_entries: Vec<String>,
+    source_map_url_mismatches: Vec<String>,
+    hash_mismatches: Vec<String>,
+}
+
+impl SourceVerificationReport {
+    fn has_mismatches(&self) -> bool {
+        !self.missing_pdfs.is_empty()
+            || !self.extra_links.is_empty()
+            || !self.source_map_missing_entries.is_empty()
+            || !self.source_map_url_mismatches.is_empty()
+            || !self.hash_mismatches.is_empty()
+    }
+}
+
+fn verify_sources(
+    docs: &Path,
+    bibliography: &Path,
+    source_map: &Path,
+) -> Result<SourceVerificationReport> {
+    let docs_pdfs = docs_pdf_hashes(docs)?;
+    let bibliography_html = fs::read_to_string(bibliography)?;
+    let bibliography_pdf_links = extract_pdf_links(&bibliography_html);
+    let source_map_markdown = fs::read_to_string(source_map)?;
+    let source_map_entries = parse_source_map_entries(&source_map_markdown);
+
+    let docs_names = docs_pdfs.keys().cloned().collect::<BTreeSet<_>>();
+    let bibliography_pdfs = bibliography_pdf_links
+        .keys()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let missing_pdfs = docs_names
+        .difference(&bibliography_pdfs)
+        .cloned()
+        .collect::<Vec<_>>();
+    let extra_links = bibliography_pdfs
+        .difference(&docs_names)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let mut source_map_missing_entries = Vec::new();
+    let mut source_map_url_mismatches = Vec::new();
+    let mut hash_mismatches = Vec::new();
+    for (pdf, hash) in &docs_pdfs {
+        match source_map_entries.get(pdf) {
+            None => source_map_missing_entries.push(pdf.clone()),
+            Some(entry) => {
+                if !entry.hashes.contains(hash) {
+                    hash_mismatches.push(pdf.clone());
+                }
+                if let Some(expected_url) = bibliography_pdf_links.get(pdf) {
+                    if !entry.urls.contains(expected_url) {
+                        source_map_url_mismatches.push(pdf.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(SourceVerificationReport {
+        docs_pdf_count: docs_pdfs.len(),
+        bibliography_pdf_link_count: bibliography_pdfs.len(),
+        missing_pdfs,
+        extra_links,
+        source_map_missing_entries,
+        source_map_url_mismatches,
+        hash_mismatches,
+    })
+}
+
+fn docs_pdf_hashes(docs: &Path) -> Result<BTreeMap<String, String>> {
+    let mut pdfs = BTreeMap::new();
+    for entry in fs::read_dir(docs)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() || !has_pdf_extension(&path) {
+            continue;
+        }
+        let Some(file_name) = path.file_name() else {
+            continue;
+        };
+        let file_name = file_name.to_string_lossy().to_string();
+        pdfs.insert(file_name, sha256_file(&path)?);
+    }
+    Ok(pdfs)
+}
+
+fn sha256_file(path: &Path) -> Result<String> {
+    let bytes = fs::read(path)?;
+    let digest = Sha256::digest(bytes);
+    Ok(format!("{digest:x}"))
+}
+
+fn has_pdf_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
+}
+
+fn extract_pdf_links(html: &str) -> BTreeMap<String, String> {
+    extract_href_values(html)
+        .into_iter()
+        .filter_map(|href| pdf_file_name_from_href(&href).map(|file_name| (file_name, href)))
+        .collect()
+}
+
+fn extract_href_values(html: &str) -> Vec<String> {
+    let lower = html.to_ascii_lowercase();
+    let mut hrefs = Vec::new();
+    let mut offset = 0;
+
+    while let Some(relative_index) = lower[offset..].find("href") {
+        let href_index = offset + relative_index;
+        let mut index = href_index + "href".len();
+        index = skip_ascii_whitespace(html, index);
+        if html.as_bytes().get(index) != Some(&b'=') {
+            offset = index;
+            continue;
+        }
+        index += 1;
+        index = skip_ascii_whitespace(html, index);
+
+        let Some(first) = html.as_bytes().get(index).copied() else {
+            break;
+        };
+        let (start, end) = if first == b'"' || first == b'\'' {
+            let quote = first;
+            let start = index + 1;
+            let end = html.as_bytes()[start..]
+                .iter()
+                .position(|byte| *byte == quote)
+                .map(|relative_end| start + relative_end);
+            let Some(end) = end else {
+                break;
+            };
+            (start, end)
+        } else {
+            let start = index;
+            let end = html.as_bytes()[start..]
+                .iter()
+                .position(|byte| byte.is_ascii_whitespace() || *byte == b'>')
+                .map(|relative_end| start + relative_end)
+                .unwrap_or(html.len());
+            (start, end)
+        };
+
+        hrefs.push(html[start..end].to_string());
+        offset = end.saturating_add(1);
+    }
+
+    hrefs
+}
+
+fn skip_ascii_whitespace(value: &str, mut index: usize) -> usize {
+    while value
+        .as_bytes()
+        .get(index)
+        .is_some_and(|byte| byte.is_ascii_whitespace())
+    {
+        index += 1;
+    }
+    index
+}
+
+fn pdf_file_name_from_href(href: &str) -> Option<String> {
+    let path = href
+        .split_once('#')
+        .map(|(path, _)| path)
+        .unwrap_or(href)
+        .split_once('?')
+        .map(|(path, _)| path)
+        .unwrap_or(href);
+    if !path.to_ascii_lowercase().ends_with(".pdf") {
+        return None;
+    }
+    let file_name = path.rsplit('/').next()?;
+    if file_name.is_empty() {
+        return None;
+    }
+    Some(percent_decode(file_name))
+}
+
+#[derive(Debug, Default)]
+struct SourceMapEntry {
+    urls: BTreeSet<String>,
+    hashes: BTreeSet<String>,
+}
+
+fn parse_source_map_entries(markdown: &str) -> BTreeMap<String, SourceMapEntry> {
+    let mut entries = BTreeMap::<String, SourceMapEntry>::new();
+    for line in markdown.lines() {
+        let pdfs = pdf_names_in_text(line);
+        if pdfs.is_empty() {
+            continue;
+        }
+        let urls = pdf_urls_in_text(line);
+        let hashes = sha256_hashes_in_text(line);
+        for pdf in pdfs {
+            let entry = entries.entry(pdf).or_default();
+            entry.urls.extend(urls.iter().cloned());
+            entry.hashes.extend(hashes.iter().cloned());
+        }
+    }
+    entries
+}
+
+fn pdf_names_in_text(text: &str) -> Vec<String> {
+    text.split('`')
+        .enumerate()
+        .filter_map(|(index, value)| {
+            (index % 2 == 1 && is_source_map_pdf_name(value)).then(|| value.to_string())
+        })
+        .collect()
+}
+
+fn is_source_map_pdf_name(value: &str) -> bool {
+    value.to_ascii_lowercase().ends_with(".pdf")
+        && value.len() > ".pdf".len()
+        && !value.contains('/')
+        && !value.contains('\\')
+        && !value.contains('*')
+}
+
+fn sha256_hashes_in_text(text: &str) -> BTreeSet<String> {
+    text.split('`')
+        .enumerate()
+        .filter_map(|(index, value)| {
+            (index % 2 == 1 && is_sha256_hex(value)).then(|| value.to_ascii_lowercase())
+        })
+        .collect()
+}
+
+fn pdf_urls_in_text(text: &str) -> BTreeSet<String> {
+    let mut urls = BTreeSet::new();
+    let mut offset = 0;
+    while let Some(start_relative) = text[offset..].find('<') {
+        let start = offset + start_relative + 1;
+        let Some(end_relative) = text[start..].find('>') else {
+            break;
+        };
+        let end = start + end_relative;
+        let value = &text[start..end];
+        if pdf_file_name_from_href(value).is_some() {
+            urls.insert(value.to_string());
+        }
+        offset = end + 1;
+    }
+    urls
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.as_bytes().iter().all(u8::is_ascii_hexdigit)
+}
+
+fn percent_decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            if let (Some(high), Some(low)) =
+                (hex_value(bytes[index + 1]), hex_value(bytes[index + 2]))
+            {
+                output.push((high << 4) | low);
+                index += 3;
+                continue;
+            }
+        }
+        output.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8_lossy(&output).to_string()
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn print_source_verification_report(report: &SourceVerificationReport) {
+    println!("source verification");
+    println!("docs_pdfs: {}", report.docs_pdf_count);
+    println!(
+        "bibliography_pdf_links: {}",
+        report.bibliography_pdf_link_count
+    );
+    println!("missing_pdfs: {}", display_list(&report.missing_pdfs));
+    println!("extra_links: {}", display_list(&report.extra_links));
+    println!(
+        "source_map_missing_entries: {}",
+        display_list(&report.source_map_missing_entries)
+    );
+    println!(
+        "source_map_url_mismatches: {}",
+        display_list(&report.source_map_url_mismatches)
+    );
+    println!("hash_mismatches: {}", display_list(&report.hash_mismatches));
+    let summary = if report.has_mismatches() {
+        "FAIL"
+    } else {
+        "PASS"
+    };
+    println!("summary: {summary}");
+}
+
+#[derive(Debug)]
+struct SourceDownloadReport {
+    sources: usize,
+    downloaded: usize,
+    skipped_existing: usize,
+    failures: Vec<String>,
+}
+
+impl SourceDownloadReport {
+    fn has_failures(&self) -> bool {
+        !self.failures.is_empty()
+    }
+}
+
+fn download_sources(
+    docs: &Path,
+    source_map: &Path,
+    overwrite: bool,
+) -> Result<SourceDownloadReport> {
+    let source_map_markdown = fs::read_to_string(source_map)?;
+    let source_map_entries = parse_source_map_entries(&source_map_markdown);
+    fs::create_dir_all(docs)?;
+
+    let mut downloaded = 0;
+    let mut skipped_existing = 0;
+    let mut failures = Vec::new();
+
+    for (pdf, entry) in &source_map_entries {
+        let Some(expected_hash) = entry.hashes.iter().next() else {
+            failures.push(format!("missing expected hash for {pdf}"));
+            continue;
+        };
+        let Some(url) = entry.urls.iter().next() else {
+            failures.push(format!("missing source URL for {pdf}"));
+            continue;
+        };
+        let target = docs.join(pdf);
+
+        if target.exists() {
+            let current_hash = sha256_file(&target)?;
+            if current_hash == *expected_hash {
+                skipped_existing += 1;
+                continue;
+            }
+            if !overwrite {
+                failures.push(format!("existing hash mismatch for {pdf}"));
+                continue;
+            }
+        }
+
+        match download_source_bytes(url) {
+            Ok(bytes) => {
+                let actual_hash = sha256_bytes(&bytes);
+                if actual_hash != *expected_hash {
+                    failures.push(format!("downloaded hash mismatch for {pdf}"));
+                    continue;
+                }
+                if let Err(error) = write_verified_download(&target, &bytes) {
+                    failures.push(format!("write failed for {pdf}: {error}"));
+                    continue;
+                }
+                downloaded += 1;
+            }
+            Err(error) => failures.push(format!("download failed for {pdf}: {error}")),
+        }
+    }
+
+    Ok(SourceDownloadReport {
+        sources: source_map_entries.len(),
+        downloaded,
+        skipped_existing,
+        failures,
+    })
+}
+
+fn download_source_bytes(url: &str) -> Result<Vec<u8>> {
+    if let Some(path) = url.strip_prefix("file://") {
+        return Ok(fs::read(percent_decode(path))?);
+    }
+    if url.starts_with("http://") || url.starts_with("https://") {
+        let response = reqwest::blocking::get(url)?.error_for_status()?;
+        return Ok(response.bytes()?.to_vec());
+    }
+    bail!("unsupported URL scheme: {url}");
+}
+
+fn sha256_bytes(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    format!("{digest:x}")
+}
+
+fn write_verified_download(target: &Path, bytes: &[u8]) -> Result<()> {
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let file_name = target
+        .file_name()
+        .map(|value| value.to_string_lossy())
+        .unwrap_or_else(|| "download.pdf".into());
+    let temp_path = target.with_file_name(format!("{file_name}.download"));
+    {
+        let mut temp_file = fs::File::create(&temp_path)?;
+        temp_file.write_all(bytes)?;
+        temp_file.sync_all()?;
+    }
+    fs::rename(temp_path, target)?;
+    Ok(())
+}
+
+fn print_source_download_report(report: &SourceDownloadReport) {
+    println!("source download");
+    println!("sources: {}", report.sources);
+    println!("downloaded: {}", report.downloaded);
+    println!("skipped_existing: {}", report.skipped_existing);
+    println!("failures: {}", display_list(&report.failures));
+    let summary = if report.has_failures() {
+        "FAIL"
+    } else {
+        "PASS"
+    };
+    println!("summary: {summary}");
 }
 
 #[derive(Debug, Deserialize)]

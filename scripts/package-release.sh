@@ -23,7 +23,9 @@ cp "$ROOT/target/release/pozsar-mcp" "$PACKAGE_DIR/bin/"
 cp "$ROOT/README.md" "$PACKAGE_DIR/"
 cp "$ROOT/LICENSE" "$PACKAGE_DIR/"
 cp "$ROOT/CHANGELOG.md" "$PACKAGE_DIR/"
+cp "$ROOT/Zoltan-Pozsar-Bibliography.html" "$PACKAGE_DIR/"
 cp -R "$ROOT/docs/." "$PACKAGE_DIR/docs/"
+find "$PACKAGE_DIR/docs" -maxdepth 1 -type f -name '*.pdf' -delete
 cp "$ROOT/eval/fixtures/pozsar_eval.json" "$PACKAGE_DIR/eval/fixtures/"
 
 tar -C "$ROOT/dist" -czf "$ARCHIVE" "$PACKAGE_NAME"

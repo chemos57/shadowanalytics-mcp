@@ -22,13 +22,13 @@ crates/
   pozsar-kb/      Core corpus library: manifesting, extraction, chunking, themes, inspection
   corpus-cli/     CLI for building and inspecting generated corpus artifacts
   pozsar-mcp/     Read-only MCP server over generated corpus chunks
-docs/             Tracked PDF corpus inputs and usage docs
+docs/             Source map, usage docs, and ignored downloaded PDFs
 data/knowledge/   Generated corpus artifacts; ignored by git
 ```
 
 ## Local PDF Inputs
 
-PDF files in `docs/` are tracked so the corpus can be rebuilt from the same source documents across machines. Before adding new PDFs to a public repository, confirm their redistribution terms.
+PDF files in `docs/` are ignored by git. [docs/SOURCE_MAP.md](docs/SOURCE_MAP.md) maps each PDF to the public source URL recorded in `Zoltan-Pozsar-Bibliography.html`, and `corpus download-sources` can rebuild the local PDF set.
 
 See [docs/README.md](docs/README.md) for details.
 
@@ -40,6 +40,8 @@ From a fresh clone:
 git clone <repo-url>
 cd zp_base
 cargo build --workspace
+cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
+cargo run -p corpus-cli -- verify-sources --docs docs --bibliography Zoltan-Pozsar-Bibliography.html --source-map docs/SOURCE_MAP.md
 cargo run -p corpus-cli -- build --docs docs --out data/knowledge
 cargo run -p corpus-cli -- inspect --out data/knowledge
 cargo build --release -p pozsar-mcp
@@ -56,6 +58,12 @@ POZSAR_CHUNKS_JSONL="$PWD/data/knowledge/chunks/pozsar_chunks.jsonl" \
 The MCP server uses stdio, so this command waits for an MCP client instead of printing an interactive prompt.
 
 ## Build The Corpus
+
+Download the local PDF corpus first:
+
+```bash
+cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
+```
 
 ```bash
 cargo run -p corpus-cli -- build --docs docs --out data/knowledge
@@ -76,6 +84,17 @@ cargo run -p corpus-cli -- inspect --out data/knowledge
 ```
 
 The inspection command reports document/page/chunk counts, empty pages, pages without chunks, validation issues, and theme distribution. It exits nonzero if validation issues are found.
+
+## Verify PDF Sources
+
+```bash
+cargo run -p corpus-cli -- verify-sources \
+  --docs docs \
+  --bibliography Zoltan-Pozsar-Bibliography.html \
+  --source-map docs/SOURCE_MAP.md
+```
+
+The verifier compares local ignored `docs/*.pdf` files with direct PDF links in the bibliography, checks each source-map URL and SHA-256 hash, and exits nonzero on mismatch.
 
 ## Evaluate Retrieval
 
@@ -179,7 +198,7 @@ Tracked:
 - `Cargo.lock`
 - `LICENSE` and `CHANGELOG.md`
 - README files
-- PDF source documents under `docs/`
+- source-map and bibliography files for rebuilding PDFs
 - tests and small fixtures
 
 Ignored:
@@ -187,4 +206,5 @@ Ignored:
 - `target/`
 - `data/knowledge/`
 - `dev_docs/`
+- `docs/*.pdf`
 - local env/log files
