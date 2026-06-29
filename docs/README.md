@@ -2,7 +2,7 @@
 
 This directory contains source-map and documentation files for the Pozsar corpus pipeline.
 
-PDF files are ignored by git. Rebuild them locally from [SOURCE_MAP.md](SOURCE_MAP.md):
+This repository does not redistribute Pozsar PDFs. PDF files are ignored by git and excluded from release archives. Rebuild them locally from the public source links recorded in [SOURCE_MAP.md](SOURCE_MAP.md):
 
 ```bash
 cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
