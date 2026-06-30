@@ -7,3 +7,4 @@ version.workspace = true
 [dependencies]
 market-context = { path = "../market-context" }
 serde.workspace = true
+thiserror.workspace = true

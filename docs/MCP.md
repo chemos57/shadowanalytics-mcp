@@ -21,11 +21,12 @@ Check the binary version without starting the stdio server:
 target/release/pozsar-mcp --version
 ```
 
-The server reads chunks from `data/knowledge/chunks/pozsar_chunks.jsonl` by default and uses `data/market/context.json` as the default market context path for advisor snapshots. Use `POZSAR_CHUNKS_JSONL` and `POZSAR_MARKET_CONTEXT_JSON` to point it at other artifacts:
+The server reads chunks from `data/knowledge/chunks/pozsar_chunks.jsonl` by default and uses `data/market/context.json` as the default market context path for advisor snapshots. If the default market context is used and `data/market/context.health.json` exists, it is included automatically; use `POZSAR_MARKET_CONTEXT_HEALTH_JSON` to point at another health sidecar for custom contexts.
 
 ```bash
 POZSAR_CHUNKS_JSONL=/absolute/path/to/pozsar_chunks.jsonl \
 POZSAR_MARKET_CONTEXT_JSON=/absolute/path/to/context.json \
+POZSAR_MARKET_CONTEXT_HEALTH_JSON=/absolute/path/to/context.health.json \
   /absolute/path/to/zp_base/target/release/pozsar-mcp
 ```
 
@@ -49,7 +50,8 @@ Example:
       "command": "/absolute/path/to/zp_base/target/release/pozsar-mcp",
       "env": {
         "POZSAR_CHUNKS_JSONL": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl",
-        "POZSAR_MARKET_CONTEXT_JSON": "/absolute/path/to/zp_base/data/market/context.json"
+        "POZSAR_MARKET_CONTEXT_JSON": "/absolute/path/to/zp_base/data/market/context.json",
+        "POZSAR_MARKET_CONTEXT_HEALTH_JSON": "/absolute/path/to/zp_base/data/market/context.health.json"
       }
     }
   }
@@ -68,6 +70,7 @@ CLI form:
 codex mcp add pozsar-corpus \
   --env POZSAR_CHUNKS_JSONL=/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl \
   --env POZSAR_MARKET_CONTEXT_JSON=/absolute/path/to/zp_base/data/market/context.json \
+  --env POZSAR_MARKET_CONTEXT_HEALTH_JSON=/absolute/path/to/zp_base/data/market/context.health.json \
   -- /absolute/path/to/zp_base/target/release/pozsar-mcp
 ```
 
@@ -83,6 +86,7 @@ enabled = true
 [mcp_servers.pozsar_corpus.env]
 POZSAR_CHUNKS_JSONL = "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
 POZSAR_MARKET_CONTEXT_JSON = "/absolute/path/to/zp_base/data/market/context.json"
+POZSAR_MARKET_CONTEXT_HEALTH_JSON = "/absolute/path/to/zp_base/data/market/context.health.json"
 ```
 
 In the Codex TUI, use `/mcp` to inspect configured MCP servers.
@@ -101,6 +105,7 @@ enabled = true
 [mcp_servers.pozsar_corpus_dev.env]
 POZSAR_CHUNKS_JSONL = "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
 POZSAR_MARKET_CONTEXT_JSON = "/absolute/path/to/zp_base/data/market/context.json"
+POZSAR_MARKET_CONTEXT_HEALTH_JSON = "/absolute/path/to/zp_base/data/market/context.health.json"
 ```
 
 Prefer the release binary for normal use because it avoids compile-time startup delays.
@@ -127,8 +132,10 @@ Output:
   "server_version": "0.1.0",
   "default_chunks_jsonl": "data/knowledge/chunks/pozsar_chunks.jsonl",
   "default_market_context_json": "data/market/context.json",
+  "default_market_context_health_json": "data/market/context.health.json",
   "chunks_path": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl",
   "market_context_path": "/absolute/path/to/zp_base/data/market/context.json",
+  "market_context_health_path": "/absolute/path/to/zp_base/data/market/context.health.json",
   "chunk_count": 421,
   "document_count": 18,
   "citation_count": 217,
@@ -468,6 +475,7 @@ Input:
   "assets": ["BTC", "DXY"],
   "themes": ["collateral", "dollar_liquidity", "repo"],
   "market_context_path": "data/market/context.json",
+  "market_context_health_path": "data/market/context.health.json",
   "limit": 8
 }
 ```
@@ -478,6 +486,8 @@ Parameters:
 - `assets` required array of asset symbols. Symbols are normalized by the liquidity signal layer.
 - `themes` optional array of theme labels used to guide corpus evidence retrieval.
 - `market_context_path` optional string. When omitted, the server uses `POZSAR_MARKET_CONTEXT_JSON`, falling back to `data/market/context.json`.
+- `market_context_health_path` optional string. When omitted, the server uses `POZSAR_MARKET_CONTEXT_HEALTH_JSON` only with the server-level market context. If the request overrides `market_context_path`, provide a matching `market_context_health_path` or the snapshot omits `market_context_health`.
+- When health metadata is provided, `market_context_health.as_of` must match `market_context.as_of`; otherwise the tool returns an error instead of emitting a potentially stale health block.
 - `limit` optional integer, clamped by the liquidity signal layer to `1..=10`, default `5`.
 
 Output:
@@ -535,6 +545,14 @@ Output:
       "dxy_trend": "up",
       "rates_proxy": "TLT_up"
     }
+  },
+  "market_context_health": {
+    "status": "ok",
+    "as_of": "2026-06-30",
+    "missing_assets": [],
+    "stale_assets": [],
+    "warnings": [],
+    "blocking_issues": []
   },
   "confirmations": [
     {
@@ -616,7 +634,8 @@ If the MCP client starts but tools return empty arrays:
 4. Run `corpus-cli inspect` and verify `validation_issues: 0`.
 5. Confirm `POZSAR_CHUNKS_JSONL` points to the intended `pozsar_chunks.jsonl`.
 6. For `get_pozsar_advisor_snapshot`, confirm `POZSAR_MARKET_CONTEXT_JSON` or `market_context_path` points to a valid market context JSON file.
-7. Restart the MCP client after changing config.
+7. If health metadata is expected, confirm `POZSAR_MARKET_CONTEXT_HEALTH_JSON` or `market_context_health_path` points to a valid health sidecar JSON file.
+8. Restart the MCP client after changing config.
 
 If the MCP client cannot start the server:
 

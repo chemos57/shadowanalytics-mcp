@@ -123,7 +123,7 @@ The output includes per-asset returns, 20-observation trend, annualized volatili
 
 ## Fetch Live Market Context
 
-Fetch live historical closes through the Yahoo-compatible CSV adapter, normalize them into `date,symbol,close`, reuse the existing market-context calculations, and write the same offline `MarketContext` JSON format:
+Fetch live historical closes through the Yahoo-compatible CSV adapter, normalize them into `date,symbol,close`, reuse the existing market-context calculations, and write the same offline `MarketContext` JSON format plus a health sidecar:
 
 ```bash
 cargo run -p corpus-cli -- fetch-market-context \
@@ -135,6 +135,13 @@ cargo run -p corpus-cli -- fetch-market-context \
 
 The command prints a health report for freshness, missing assets, stale prices, and insufficient history. It exits nonzero if blocking health issues are found. MCP and advisor tools still consume only the generated `context.json`; they do not fetch live data directly.
 
+Generated files:
+
+```text
+data/market/context.json
+data/market/context.health.json
+```
+
 ## Build Advisor Snapshot
 
 Combine corpus liquidity evidence with a local market context snapshot:
@@ -143,6 +150,7 @@ Combine corpus liquidity evidence with a local market context snapshot:
 cargo run -p corpus-cli -- advisor-snapshot \
   --chunks data/knowledge/chunks/pozsar_chunks.jsonl \
   --market-context data/market/context.json \
+  --market-health data/market/context.health.json \
   --question "What does collateral scarcity imply for cross-asset liquidity?" \
   --assets BTC,ETH,SPY,QQQ,GLD,TLT,DXY \
   --themes collateral,dollar_liquidity,repo \
@@ -150,6 +158,8 @@ cargo run -p corpus-cli -- advisor-snapshot \
 ```
 
 The output includes source-cited liquidity signals, market context, per-asset macro/market alignment, and a combined regime label such as `macro_tightening_market_risk_on`. It is deterministic context for a future advisor layer, not trading advice.
+
+If `--market-health` is supplied, its `as_of` must match the market context `as_of`; stale or mismatched health sidecars are rejected.
 
 ## Verify PDF Sources
 

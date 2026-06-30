@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use chrono::{Duration, NaiveDate, Utc};
 use market_context::{build_market_context, MarketContext, PriceRow};
+pub use market_context::{MarketDataHealth, MarketDataHealthStatus};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -14,24 +15,6 @@ pub struct FetchMarketContextRequest {
 pub struct FetchMarketContextResult {
     pub context: MarketContext,
     pub health: MarketDataHealth,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MarketDataHealthStatus {
-    Ok,
-    Warning,
-    Invalid,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct MarketDataHealth {
-    pub status: MarketDataHealthStatus,
-    pub as_of: String,
-    pub missing_assets: Vec<String>,
-    pub stale_assets: Vec<String>,
-    pub warnings: Vec<String>,
-    pub blocking_issues: Vec<String>,
 }
 
 pub trait MarketDataProvider {

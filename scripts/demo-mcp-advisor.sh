@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHUNKS_JSONL="${POZSAR_CHUNKS_JSONL:-$ROOT/data/knowledge/chunks/pozsar_chunks.jsonl}"
 MARKET_CONTEXT_JSON="${POZSAR_MARKET_CONTEXT_JSON:-$ROOT/data/market/context.json}"
+MARKET_CONTEXT_HEALTH_JSON="${POZSAR_MARKET_CONTEXT_HEALTH_JSON:-$ROOT/data/market/context.health.json}"
 MCP_BIN="${POZSAR_MCP_BIN:-$ROOT/target/release/pozsar-mcp}"
 
 if [[ ! -x "$MCP_BIN" ]]; then
@@ -25,7 +26,7 @@ if [[ ! -f "$MARKET_CONTEXT_JSON" ]]; then
   exit 1
 fi
 
-python3 - "$MCP_BIN" "$CHUNKS_JSONL" "$MARKET_CONTEXT_JSON" <<'PY'
+python3 - "$MCP_BIN" "$CHUNKS_JSONL" "$MARKET_CONTEXT_JSON" "$MARKET_CONTEXT_HEALTH_JSON" <<'PY'
 import json
 import os
 import pathlib
@@ -37,6 +38,7 @@ import sys
 binary = pathlib.Path(sys.argv[1]).resolve()
 chunks_jsonl = pathlib.Path(sys.argv[2]).resolve()
 market_context_json = pathlib.Path(sys.argv[3]).resolve()
+market_context_health_json = pathlib.Path(sys.argv[4]).resolve()
 
 
 def require(condition: bool, message: str) -> None:
@@ -60,6 +62,8 @@ def parse_tool_json(response: dict):
 env = os.environ.copy()
 env["POZSAR_CHUNKS_JSONL"] = str(chunks_jsonl)
 env["POZSAR_MARKET_CONTEXT_JSON"] = str(market_context_json)
+if market_context_health_json.is_file():
+    env["POZSAR_MARKET_CONTEXT_HEALTH_JSON"] = str(market_context_health_json)
 proc = subprocess.Popen(
     [str(binary)],
     env=env,
@@ -130,7 +134,9 @@ try:
         "server": initialize["result"]["serverInfo"],
         "chunks_jsonl": str(chunks_jsonl),
         "market_context_json": str(market_context_json),
+        "market_context_health_json": str(market_context_health_json) if market_context_health_json.is_file() else None,
         "regime": snapshot.get("regime"),
+        "market_context_health": snapshot.get("market_context_health"),
         "confirmations": snapshot.get("confirmations", []),
         "unknowns": snapshot.get("unknowns", []),
         "citations": snapshot.get("liquidity_signals", {}).get("citations", []),

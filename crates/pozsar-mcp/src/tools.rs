@@ -6,9 +6,9 @@ use crate::search::{
 };
 use crate::signals::extract_liquidity_signals;
 pub use crate::signals::LiquiditySignalParams;
-use advisor_core::build_advisor_snapshot;
+use advisor_core::build_advisor_snapshot_with_health;
 use anyhow::{Context, Result};
-use market_context::MarketContext;
+use market_context::{MarketContext, MarketDataHealth};
 use pozsar_kb::chunk::KnowledgeChunk;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -25,12 +25,14 @@ pub const SERVER_NAME: &str = "pozsar-corpus";
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_CHUNKS_JSONL: &str = "data/knowledge/chunks/pozsar_chunks.jsonl";
 pub const DEFAULT_MARKET_CONTEXT_JSON: &str = "data/market/context.json";
+pub const DEFAULT_MARKET_CONTEXT_HEALTH_JSON: &str = "data/market/context.health.json";
 
 #[derive(Clone)]
 pub struct PozsarCorpusMcp {
     chunks: Arc<Vec<KnowledgeChunk>>,
     chunks_path: Option<String>,
     market_context_path: Option<String>,
+    market_context_health_path: Option<String>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -40,6 +42,7 @@ impl PozsarCorpusMcp {
             chunks: Arc::new(chunks),
             chunks_path: None,
             market_context_path: None,
+            market_context_health_path: None,
             tool_router: Self::tool_router(),
         }
     }
@@ -51,6 +54,14 @@ impl PozsarCorpusMcp {
 
     pub fn with_market_context_path(mut self, market_context_path: impl ToString) -> Self {
         self.market_context_path = Some(market_context_path.to_string());
+        self
+    }
+
+    pub fn with_market_context_health_path(
+        mut self,
+        market_context_health_path: impl ToString,
+    ) -> Self {
+        self.market_context_health_path = Some(market_context_health_path.to_string());
         self
     }
 
@@ -76,8 +87,10 @@ impl PozsarCorpusMcp {
             server_version: SERVER_VERSION,
             default_chunks_jsonl: DEFAULT_CHUNKS_JSONL,
             default_market_context_json: DEFAULT_MARKET_CONTEXT_JSON,
+            default_market_context_health_json: DEFAULT_MARKET_CONTEXT_HEALTH_JSON,
             chunks_path: self.chunks_path.clone(),
             market_context_path: self.market_context_path.clone(),
+            market_context_health_path: self.market_context_health_path.clone(),
             chunk_count: self.chunks.len(),
             document_count: documents.len(),
             citation_count: citations.len(),
@@ -101,16 +114,28 @@ impl PozsarCorpusMcp {
         &self,
         params: AdvisorSnapshotParams,
     ) -> Result<advisor_core::AdvisorSnapshot> {
-        let market_context_path = params
-            .market_context_path
-            .clone()
-            .or_else(|| self.market_context_path.clone())
-            .ok_or_else(|| {
+        let uses_request_market_context = params.market_context_path.is_some();
+        let market_context_path = if let Some(market_context_path) =
+            params.market_context_path.clone()
+        {
+            market_context_path
+        } else {
+            self.market_context_path.clone().ok_or_else(|| {
                 anyhow::anyhow!(
                     "market context path is required via market_context_path or POZSAR_MARKET_CONTEXT_JSON"
                 )
-            })?;
+            })?
+        };
         let market_context = load_market_context_json(Path::new(&market_context_path))?;
+        let market_context_health_path = params.market_context_health_path.clone().or_else(|| {
+            (!uses_request_market_context)
+                .then(|| self.market_context_health_path.clone())
+                .flatten()
+        });
+        let market_context_health = market_context_health_path
+            .as_deref()
+            .map(|path| load_market_context_health_json(Path::new(path)))
+            .transpose()?;
         let liquidity_signals = extract_liquidity_signals(
             &self.chunks,
             LiquiditySignalParams {
@@ -121,11 +146,12 @@ impl PozsarCorpusMcp {
             },
         );
 
-        Ok(build_advisor_snapshot(
+        Ok(build_advisor_snapshot_with_health(
             params.question,
             liquidity_signals,
             market_context,
-        ))
+            market_context_health,
+        )?)
     }
 }
 
@@ -158,6 +184,7 @@ pub struct AdvisorSnapshotParams {
     pub assets: Vec<String>,
     pub themes: Option<Vec<String>>,
     pub market_context_path: Option<String>,
+    pub market_context_health_path: Option<String>,
     pub limit: Option<u64>,
 }
 
@@ -185,8 +212,10 @@ pub struct PozsarKbStatus {
     pub server_version: &'static str,
     pub default_chunks_jsonl: &'static str,
     pub default_market_context_json: &'static str,
+    pub default_market_context_health_json: &'static str,
     pub chunks_path: Option<String>,
     pub market_context_path: Option<String>,
+    pub market_context_health_path: Option<String>,
     pub chunk_count: usize,
     pub document_count: usize,
     pub citation_count: usize,
@@ -355,6 +384,12 @@ pub fn load_market_context_json(path: &Path) -> Result<MarketContext> {
     let json = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     serde_json::from_str::<MarketContext>(&json)
         .with_context(|| format!("parse market context {}", path.display()))
+}
+
+pub fn load_market_context_health_json(path: &Path) -> Result<MarketDataHealth> {
+    let json = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    serde_json::from_str::<MarketDataHealth>(&json)
+        .with_context(|| format!("parse market context health {}", path.display()))
 }
 
 pub fn source_cited_passage(chunk: &KnowledgeChunk) -> SourceCitedPassage {
