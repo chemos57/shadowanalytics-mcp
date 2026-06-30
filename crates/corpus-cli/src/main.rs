@@ -1,4 +1,4 @@
-use advisor_core::build_advisor_snapshot;
+use advisor_core::{build_advisor_snapshot, AdvisorSnapshot};
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use market_context::{build_market_context_from_csv, MarketContext};
@@ -58,6 +58,14 @@ enum Command {
         format: EvalOutputFormat,
         #[arg(long, default_value_t = false)]
         fail_fast: bool,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    EvalAdvisor {
+        #[arg(long)]
+        cases: PathBuf,
+        #[arg(long, value_enum, default_value_t = EvalOutputFormat::Text)]
+        format: EvalOutputFormat,
         #[arg(long)]
         output: Option<PathBuf>,
     },
@@ -164,6 +172,22 @@ fn main() -> Result<()> {
             if report.failed > 0 {
                 bail!(
                     "retrieval eval failed: {}/{} passed",
+                    report.passed,
+                    report.total
+                );
+            }
+        }
+        Command::EvalAdvisor {
+            cases,
+            format,
+            output,
+        } => {
+            let cases = read_advisor_eval_cases(&cases)?;
+            let report = eval_advisor(&cases)?;
+            emit_advisor_eval_report(&report, format, output.as_ref())?;
+            if report.failed > 0 {
+                bail!(
+                    "advisor eval failed: {}/{} passed",
                     report.passed,
                     report.total
                 );
@@ -742,6 +766,34 @@ struct EvalCase {
     max_rank: Option<usize>,
 }
 
+#[derive(Debug, Deserialize)]
+struct AdvisorEvalCase {
+    name: String,
+    question: String,
+    chunks: PathBuf,
+    market_context: PathBuf,
+    assets: Vec<String>,
+    themes: Option<Vec<String>>,
+    expected: AdvisorExpected,
+}
+
+#[derive(Debug, Deserialize)]
+struct AdvisorExpected {
+    macro_liquidity: String,
+    market_risk: String,
+    combined: String,
+    confirmations: Vec<AdvisorExpectedConfirmation>,
+    forbidden_terms: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AdvisorExpectedConfirmation {
+    asset: String,
+    macro_bias: String,
+    market_trend: String,
+    alignment: String,
+}
+
 #[derive(Serialize)]
 struct EvalReport {
     tool: EvalRetrievalTool,
@@ -789,9 +841,81 @@ struct RankFailure {
     max_rank: usize,
 }
 
+#[derive(Serialize)]
+struct AdvisorEvalReport {
+    total: usize,
+    passed: usize,
+    failed: usize,
+    cases: Vec<AdvisorEvalCaseReport>,
+}
+
+#[derive(Serialize)]
+struct AdvisorEvalCaseReport {
+    name: String,
+    passed: bool,
+    failures: Vec<String>,
+    actual_regime: AdvisorEvalRegime,
+}
+
+#[derive(Serialize)]
+struct AdvisorEvalRegime {
+    macro_liquidity: String,
+    market_risk: String,
+    combined: String,
+}
+
 fn read_eval_cases(path: &PathBuf) -> Result<Vec<EvalCase>> {
     let json = fs::read_to_string(path)?;
     Ok(serde_json::from_str(&json)?)
+}
+
+fn read_advisor_eval_cases(path: &PathBuf) -> Result<Vec<AdvisorEvalCase>> {
+    let json = fs::read_to_string(path)?;
+    let mut cases = serde_json::from_str::<Vec<AdvisorEvalCase>>(&json)?;
+    let case_file = fs::canonicalize(path)?;
+    let case_dir = case_file.parent().unwrap_or_else(|| Path::new("."));
+    let workspace_root = find_workspace_root(case_dir);
+
+    for case in &mut cases {
+        case.chunks = resolve_advisor_case_path(&case.chunks, case_dir, workspace_root.as_deref());
+        case.market_context =
+            resolve_advisor_case_path(&case.market_context, case_dir, workspace_root.as_deref());
+    }
+
+    Ok(cases)
+}
+
+fn resolve_advisor_case_path(
+    path: &Path,
+    case_dir: &Path,
+    workspace_root: Option<&Path>,
+) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+
+    let case_relative = case_dir.join(path);
+    if case_relative.exists() {
+        return case_relative;
+    }
+
+    if let Some(workspace_root) = workspace_root {
+        let workspace_relative = workspace_root.join(path);
+        if workspace_relative.exists() {
+            return workspace_relative;
+        }
+    }
+
+    case_relative
+}
+
+fn find_workspace_root(start: &Path) -> Option<PathBuf> {
+    start
+        .ancestors()
+        .find(|candidate| {
+            candidate.join("Cargo.toml").is_file() && candidate.join("crates").is_dir()
+        })
+        .map(Path::to_path_buf)
 }
 
 fn eval_search(
@@ -830,6 +954,93 @@ fn eval_search(
     }
 }
 
+fn eval_advisor(cases: &[AdvisorEvalCase]) -> Result<AdvisorEvalReport> {
+    let mut reports = Vec::new();
+
+    for case in cases {
+        reports.push(eval_advisor_case(case)?);
+    }
+
+    let passed = reports.iter().filter(|case| case.passed).count();
+    let total = reports.len();
+
+    Ok(AdvisorEvalReport {
+        total,
+        passed,
+        failed: total.saturating_sub(passed),
+        cases: reports,
+    })
+}
+
+fn eval_advisor_case(case: &AdvisorEvalCase) -> Result<AdvisorEvalCaseReport> {
+    let chunks = read_chunks_jsonl(&case.chunks)?;
+    let market_context_json = fs::read_to_string(&case.market_context)?;
+    let market_context: MarketContext = serde_json::from_str(&market_context_json)?;
+    let liquidity_signals = extract_liquidity_signals(
+        &chunks,
+        LiquiditySignalParams {
+            question: case.question.clone(),
+            assets: case.assets.clone(),
+            themes: case.themes.clone(),
+            limit: Some(8),
+        },
+    );
+    let snapshot = build_advisor_snapshot(case.question.clone(), liquidity_signals, market_context);
+    let actual_regime = AdvisorEvalRegime {
+        macro_liquidity: snapshot.regime.macro_liquidity.clone(),
+        market_risk: snapshot.regime.market_risk.clone(),
+        combined: snapshot.regime.combined.clone(),
+    };
+    let mut failures = Vec::new();
+
+    if actual_regime.macro_liquidity != case.expected.macro_liquidity {
+        failures.push(format!(
+            "macro_liquidity expected {}, got {}",
+            case.expected.macro_liquidity, actual_regime.macro_liquidity
+        ));
+    }
+    if actual_regime.market_risk != case.expected.market_risk {
+        failures.push(format!(
+            "market_risk expected {}, got {}",
+            case.expected.market_risk, actual_regime.market_risk
+        ));
+    }
+    if actual_regime.combined != case.expected.combined {
+        failures.push(format!(
+            "combined expected {}, got {}",
+            case.expected.combined, actual_regime.combined
+        ));
+    }
+
+    for expected in &case.expected.confirmations {
+        if !snapshot.confirmations.iter().any(|actual| {
+            actual.asset == expected.asset
+                && actual.macro_bias == expected.macro_bias
+                && actual.market_trend == expected.market_trend
+                && actual.alignment == expected.alignment
+        }) {
+            failures.push(format!(
+                "missing confirmation {} {} {} {}",
+                expected.asset, expected.macro_bias, expected.market_trend, expected.alignment
+            ));
+        }
+    }
+
+    let rendered_snapshot = render_forbidden_term_scan_fields(&snapshot)?;
+    for term in &case.expected.forbidden_terms {
+        if contains_forbidden_term(&rendered_snapshot, term) {
+            failures.push(format!("forbidden term present: {term}"));
+        }
+    }
+
+    Ok(AdvisorEvalCaseReport {
+        name: case.name.clone(),
+        passed: failures.is_empty(),
+        failures,
+        actual_regime,
+    })
+}
+
 fn eval_case(
     chunks: &[pozsar_kb::chunk::KnowledgeChunk],
     case: &EvalCase,
@@ -865,6 +1076,41 @@ fn eval_case(
         rank_failures,
         top_scores: result.top_scores,
     }
+}
+
+fn render_forbidden_term_scan_fields(snapshot: &AdvisorSnapshot) -> Result<String> {
+    let liquidity_conditions = snapshot
+        .liquidity_signals
+        .liquidity_conditions
+        .iter()
+        .map(|condition| {
+            serde_json::json!({
+                "label": condition.label,
+                "direction": condition.direction,
+                "confidence": condition.confidence,
+            })
+        })
+        .collect::<Vec<_>>();
+    let value = serde_json::json!({
+        "macro_themes": &snapshot.liquidity_signals.macro_themes,
+        "liquidity_conditions": liquidity_conditions,
+        "cross_asset_implications": &snapshot.liquidity_signals.cross_asset_implications,
+        "confirmations": &snapshot.confirmations,
+        "regime": &snapshot.regime,
+        "unknowns": &snapshot.unknowns,
+    });
+
+    Ok(serde_json::to_string(&value)?)
+}
+
+fn contains_forbidden_term(text: &str, term: &str) -> bool {
+    let term = term.to_ascii_lowercase();
+    if term.is_empty() {
+        return false;
+    }
+    text.to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .any(|token| token == term)
 }
 
 struct EvalRetrievalResult {
@@ -1031,6 +1277,25 @@ fn emit_eval_report(
     Ok(())
 }
 
+fn emit_advisor_eval_report(
+    report: &AdvisorEvalReport,
+    format: EvalOutputFormat,
+    output: Option<&PathBuf>,
+) -> Result<()> {
+    let rendered = render_advisor_eval_report(report, format)?;
+    if let Some(output) = output {
+        if let Some(parent) = output.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(output, rendered)?;
+        println!("wrote advisor eval report: {}", output.display());
+        println!("summary: {}/{} passed", report.passed, report.total);
+    } else {
+        print!("{rendered}");
+    }
+    Ok(())
+}
+
 fn render_eval_report(report: &EvalReport, format: EvalOutputFormat) -> Result<String> {
     if matches!(format, EvalOutputFormat::Json) {
         return Ok(format!("{}\n", serde_json::to_string_pretty(report)?));
@@ -1090,6 +1355,36 @@ fn render_eval_report(report: &EvalReport, format: EvalOutputFormat) -> Result<S
             ));
         }
     }
+    Ok(output)
+}
+
+fn render_advisor_eval_report(
+    report: &AdvisorEvalReport,
+    format: EvalOutputFormat,
+) -> Result<String> {
+    if matches!(format, EvalOutputFormat::Json) {
+        return Ok(format!("{}\n", serde_json::to_string_pretty(report)?));
+    }
+
+    let mut output = String::new();
+    output.push_str("advisor eval\n");
+    for case in &report.cases {
+        let status = if case.passed { "PASS" } else { "FAIL" };
+        output.push_str(&format!("{status} {}\n", case.name));
+        output.push_str(&format!(
+            "  regime: {}/{}/{}\n",
+            case.actual_regime.macro_liquidity,
+            case.actual_regime.market_risk,
+            case.actual_regime.combined
+        ));
+        if !case.failures.is_empty() {
+            output.push_str(&format!("  failures: {}\n", display_list(&case.failures)));
+        }
+    }
+    output.push_str(&format!(
+        "summary: {}/{} passed\n",
+        report.passed, report.total
+    ));
     Ok(output)
 }
 

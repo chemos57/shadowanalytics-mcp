@@ -3,6 +3,7 @@
 /data/knowledge/
 /data/market/*.json
 /data/advisor/*.json
+/data/eval/
 /dev_docs/
 /eval/*.json
 /eval/local/
