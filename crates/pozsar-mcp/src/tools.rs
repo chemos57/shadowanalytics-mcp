@@ -6,7 +6,9 @@ use crate::search::{
 };
 use crate::signals::extract_liquidity_signals;
 pub use crate::signals::LiquiditySignalParams;
+use advisor_core::build_advisor_snapshot;
 use anyhow::{Context, Result};
+use market_context::MarketContext;
 use pozsar_kb::chunk::KnowledgeChunk;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -22,11 +24,13 @@ use std::sync::Arc;
 pub const SERVER_NAME: &str = "pozsar-corpus";
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const DEFAULT_CHUNKS_JSONL: &str = "data/knowledge/chunks/pozsar_chunks.jsonl";
+pub const DEFAULT_MARKET_CONTEXT_JSON: &str = "data/market/context.json";
 
 #[derive(Clone)]
 pub struct PozsarCorpusMcp {
     chunks: Arc<Vec<KnowledgeChunk>>,
     chunks_path: Option<String>,
+    market_context_path: Option<String>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -35,12 +39,18 @@ impl PozsarCorpusMcp {
         Self {
             chunks: Arc::new(chunks),
             chunks_path: None,
+            market_context_path: None,
             tool_router: Self::tool_router(),
         }
     }
 
     pub fn with_chunks_path(mut self, chunks_path: impl Into<String>) -> Self {
         self.chunks_path = Some(chunks_path.into());
+        self
+    }
+
+    pub fn with_market_context_path(mut self, market_context_path: impl ToString) -> Self {
+        self.market_context_path = Some(market_context_path.to_string());
         self
     }
 
@@ -65,7 +75,9 @@ impl PozsarCorpusMcp {
             server_name: SERVER_NAME,
             server_version: SERVER_VERSION,
             default_chunks_jsonl: DEFAULT_CHUNKS_JSONL,
+            default_market_context_json: DEFAULT_MARKET_CONTEXT_JSON,
             chunks_path: self.chunks_path.clone(),
+            market_context_path: self.market_context_path.clone(),
             chunk_count: self.chunks.len(),
             document_count: documents.len(),
             citation_count: citations.len(),
@@ -80,8 +92,40 @@ impl PozsarCorpusMcp {
                 "read_pozsar_page_context",
                 "answer_pozsar_research_question",
                 "extract_pozsar_liquidity_signals",
+                "get_pozsar_advisor_snapshot",
             ],
         }
+    }
+
+    fn advisor_snapshot(
+        &self,
+        params: AdvisorSnapshotParams,
+    ) -> Result<advisor_core::AdvisorSnapshot> {
+        let market_context_path = params
+            .market_context_path
+            .clone()
+            .or_else(|| self.market_context_path.clone())
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "market context path is required via market_context_path or POZSAR_MARKET_CONTEXT_JSON"
+                )
+            })?;
+        let market_context = load_market_context_json(Path::new(&market_context_path))?;
+        let liquidity_signals = extract_liquidity_signals(
+            &self.chunks,
+            LiquiditySignalParams {
+                question: params.question.clone(),
+                assets: params.assets,
+                themes: params.themes,
+                limit: params.limit,
+            },
+        );
+
+        Ok(build_advisor_snapshot(
+            params.question,
+            liquidity_signals,
+            market_context,
+        ))
     }
 }
 
@@ -108,6 +152,15 @@ pub struct ReadPageContextParams {
     pub radius: Option<u32>,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct AdvisorSnapshotParams {
+    pub question: String,
+    pub assets: Vec<String>,
+    pub themes: Option<Vec<String>>,
+    pub market_context_path: Option<String>,
+    pub limit: Option<u64>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CorpusDocument {
     pub doc_id: String,
@@ -131,7 +184,9 @@ pub struct PozsarKbStatus {
     pub server_name: &'static str,
     pub server_version: &'static str,
     pub default_chunks_jsonl: &'static str,
+    pub default_market_context_json: &'static str,
     pub chunks_path: Option<String>,
+    pub market_context_path: Option<String>,
     pub chunk_count: usize,
     pub document_count: usize,
     pub citation_count: usize,
@@ -245,6 +300,22 @@ impl PozsarCorpusMcp {
     ) -> String {
         serde_json::to_string_pretty(&extract_liquidity_signals(&self.chunks, params)).unwrap()
     }
+
+    #[tool(
+        description = "Build a deterministic advisor snapshot from Pozsar corpus liquidity signals plus offline market context. Does not generate trade recommendations. Read-only."
+    )]
+    pub fn get_pozsar_advisor_snapshot(
+        &self,
+        Parameters(params): Parameters<AdvisorSnapshotParams>,
+    ) -> String {
+        match self.advisor_snapshot(params) {
+            Ok(snapshot) => serde_json::to_string_pretty(&snapshot).unwrap(),
+            Err(error) => serde_json::to_string_pretty(&serde_json::json!({
+                "error": error.to_string()
+            }))
+            .unwrap(),
+        }
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
@@ -278,6 +349,12 @@ pub fn load_chunks_jsonl(path: &Path) -> Result<Vec<KnowledgeChunk>> {
                 .with_context(|| format!("parse chunk jsonl line {}", index + 1))
         })
         .collect()
+}
+
+pub fn load_market_context_json(path: &Path) -> Result<MarketContext> {
+    let json = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    serde_json::from_str::<MarketContext>(&json)
+        .with_context(|| format!("parse market context {}", path.display()))
 }
 
 pub fn source_cited_passage(chunk: &KnowledgeChunk) -> SourceCitedPassage {

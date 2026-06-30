@@ -1,7 +1,10 @@
 use crate::research::{answer_research_question, ResearchEvidence, ResearchQuestionParams};
+pub use advisor_core::{
+    CrossAssetImplication, LiquidityCondition, LiquiditySignalBundle, LiquiditySignalEvidence,
+};
 use pozsar_kb::chunk::KnowledgeChunk;
 use rmcp::schemars;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::BTreeSet;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -10,42 +13,6 @@ pub struct LiquiditySignalParams {
     pub assets: Vec<String>,
     pub themes: Option<Vec<String>>,
     pub limit: Option<u64>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LiquiditySignalBundle {
-    pub question: String,
-    pub macro_themes: Vec<String>,
-    pub liquidity_conditions: Vec<LiquidityCondition>,
-    pub cross_asset_implications: Vec<CrossAssetImplication>,
-    pub unknowns: Vec<String>,
-    pub citations: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LiquidityCondition {
-    pub label: String,
-    pub direction: String,
-    pub confidence: String,
-    pub evidence: Vec<LiquiditySignalEvidence>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct LiquiditySignalEvidence {
-    pub citation: String,
-    pub doc_id: String,
-    pub page: u32,
-    pub themes: Vec<String>,
-    pub snippet: Option<String>,
-    pub query_sources: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CrossAssetImplication {
-    pub asset: String,
-    pub bias: String,
-    pub reason: String,
-    pub citations: Vec<String>,
 }
 
 pub fn extract_liquidity_signals(

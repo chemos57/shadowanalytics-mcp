@@ -21,10 +21,11 @@ Check the binary version without starting the stdio server:
 target/release/pozsar-mcp --version
 ```
 
-The server reads chunks from `data/knowledge/chunks/pozsar_chunks.jsonl` by default. Use `POZSAR_CHUNKS_JSONL` to point it at another artifact:
+The server reads chunks from `data/knowledge/chunks/pozsar_chunks.jsonl` by default and uses `data/market/context.json` as the default market context path for advisor snapshots. Use `POZSAR_CHUNKS_JSONL` and `POZSAR_MARKET_CONTEXT_JSON` to point it at other artifacts:
 
 ```bash
 POZSAR_CHUNKS_JSONL=/absolute/path/to/pozsar_chunks.jsonl \
+POZSAR_MARKET_CONTEXT_JSON=/absolute/path/to/context.json \
   /absolute/path/to/zp_base/target/release/pozsar-mcp
 ```
 
@@ -47,7 +48,8 @@ Example:
     "pozsar-corpus": {
       "command": "/absolute/path/to/zp_base/target/release/pozsar-mcp",
       "env": {
-        "POZSAR_CHUNKS_JSONL": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
+        "POZSAR_CHUNKS_JSONL": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl",
+        "POZSAR_MARKET_CONTEXT_JSON": "/absolute/path/to/zp_base/data/market/context.json"
       }
     }
   }
@@ -65,6 +67,7 @@ CLI form:
 ```bash
 codex mcp add pozsar-corpus \
   --env POZSAR_CHUNKS_JSONL=/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl \
+  --env POZSAR_MARKET_CONTEXT_JSON=/absolute/path/to/zp_base/data/market/context.json \
   -- /absolute/path/to/zp_base/target/release/pozsar-mcp
 ```
 
@@ -79,6 +82,7 @@ enabled = true
 
 [mcp_servers.pozsar_corpus.env]
 POZSAR_CHUNKS_JSONL = "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
+POZSAR_MARKET_CONTEXT_JSON = "/absolute/path/to/zp_base/data/market/context.json"
 ```
 
 In the Codex TUI, use `/mcp` to inspect configured MCP servers.
@@ -96,6 +100,7 @@ enabled = true
 
 [mcp_servers.pozsar_corpus_dev.env]
 POZSAR_CHUNKS_JSONL = "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl"
+POZSAR_MARKET_CONTEXT_JSON = "/absolute/path/to/zp_base/data/market/context.json"
 ```
 
 Prefer the release binary for normal use because it avoids compile-time startup delays.
@@ -121,7 +126,9 @@ Output:
   "server_name": "pozsar-corpus",
   "server_version": "0.1.0",
   "default_chunks_jsonl": "data/knowledge/chunks/pozsar_chunks.jsonl",
+  "default_market_context_json": "data/market/context.json",
   "chunks_path": "/absolute/path/to/zp_base/data/knowledge/chunks/pozsar_chunks.jsonl",
+  "market_context_path": "/absolute/path/to/zp_base/data/market/context.json",
   "chunk_count": 421,
   "document_count": 18,
   "citation_count": 217,
@@ -135,12 +142,13 @@ Output:
     "read_pozsar_source",
     "read_pozsar_page_context",
     "answer_pozsar_research_question",
-    "extract_pozsar_liquidity_signals"
+    "extract_pozsar_liquidity_signals",
+    "get_pozsar_advisor_snapshot"
   ]
 }
 ```
 
-Use this first when debugging an MCP client config. It confirms that the server loaded the expected chunk artifact and exposes the expected tool set.
+Use this first when debugging an MCP client config. It confirms that the server loaded the expected chunk artifact, has the expected market context path configured, and exposes the expected tool set.
 
 ### `list_pozsar_docs`
 
@@ -448,6 +456,117 @@ Output:
 
 Use this as the bridge between corpus retrieval and a future trading advisor. It structures macro/liquidity evidence for downstream systems, but downstream systems must still add market data, trend, volatility, positioning, risk constraints, and execution rules.
 
+### `get_pozsar_advisor_snapshot`
+
+Builds a deterministic advisor-ready snapshot from Pozsar corpus liquidity evidence plus offline market context. This tool is read-only and does not generate trade recommendations, position sizing, execution instructions, or financial advice.
+
+Input:
+
+```json
+{
+  "question": "What does collateral scarcity imply for BTC and DXY?",
+  "assets": ["BTC", "DXY"],
+  "themes": ["collateral", "dollar_liquidity", "repo"],
+  "market_context_path": "data/market/context.json",
+  "limit": 8
+}
+```
+
+Parameters:
+
+- `question` required string.
+- `assets` required array of asset symbols. Symbols are normalized by the liquidity signal layer.
+- `themes` optional array of theme labels used to guide corpus evidence retrieval.
+- `market_context_path` optional string. When omitted, the server uses `POZSAR_MARKET_CONTEXT_JSON`, falling back to `data/market/context.json`.
+- `limit` optional integer, clamped by the liquidity signal layer to `1..=10`, default `5`.
+
+Output:
+
+```json
+{
+  "question": "What does collateral scarcity imply for BTC and DXY?",
+  "liquidity_signals": {
+    "question": "What does collateral scarcity imply for BTC and DXY?",
+    "macro_themes": ["collateral", "dollar_liquidity", "repo"],
+    "liquidity_conditions": [
+      {
+        "label": "collateral_scarcity",
+        "direction": "tightening",
+        "confidence": "medium",
+        "evidence": [
+          {
+            "citation": "a-decade-on-money-31.pdf:3",
+            "doc_id": "a-decade-on-money-31",
+            "page": 3,
+            "themes": ["collateral", "repo", "dollar_liquidity"],
+            "snippet": "Matched source snippet...",
+            "query_sources": ["original_question", "theme_filtered"]
+          }
+        ]
+      }
+    ],
+    "cross_asset_implications": [
+      {
+        "asset": "BTC",
+        "bias": "risk_negative",
+        "reason": "Corpus evidence points to liquidity tightening, a macro condition that can pressure duration-sensitive or speculative risk assets.",
+        "citations": ["a-decade-on-money-31.pdf:3"]
+      },
+      {
+        "asset": "DXY",
+        "bias": "supportive",
+        "reason": "Corpus evidence points to tighter dollar funding conditions, which can increase demand for dollar liquidity.",
+        "citations": ["a-decade-on-money-31.pdf:3"]
+      }
+    ],
+    "unknowns": ["Corpus evidence only"],
+    "citations": ["a-decade-on-money-31.pdf:3"]
+  },
+  "market_context": {
+    "as_of": "2026-06-30",
+    "assets": [
+      {
+        "symbol": "BTC",
+        "trend_20d": "up"
+      }
+    ],
+    "cross_asset": {
+      "risk_regime": "risk_on",
+      "dxy_trend": "up",
+      "rates_proxy": "TLT_up"
+    }
+  },
+  "confirmations": [
+    {
+      "asset": "BTC",
+      "macro_bias": "risk_negative",
+      "market_trend": "up",
+      "alignment": "divergent",
+      "reason": "Macro liquidity bias is risk_negative, but BTC trend is up."
+    }
+  ],
+  "regime": {
+    "macro_liquidity": "tightening",
+    "market_risk": "risk_on",
+    "combined": "macro_tightening_market_risk_on"
+  },
+  "unknowns": [
+    "No live data",
+    "No position sizing",
+    "No execution recommendation",
+    "Advisor snapshot is deterministic context, not financial advice"
+  ]
+}
+```
+
+Run a raw stdio demo:
+
+```bash
+scripts/demo-mcp-advisor.sh
+```
+
+Use this when an MCP client needs one deterministic object combining corpus macro/liquidity evidence with current offline market context. A later advisor or portfolio layer can consume this snapshot together with risk rules, but this tool itself remains evidence/context only.
+
 ### `read_pozsar_source`
 
 Reads all chunks for one exact document page.
@@ -496,7 +615,8 @@ If the MCP client starts but tools return empty arrays:
 3. Rebuild artifacts with `corpus-cli build`.
 4. Run `corpus-cli inspect` and verify `validation_issues: 0`.
 5. Confirm `POZSAR_CHUNKS_JSONL` points to the intended `pozsar_chunks.jsonl`.
-6. Restart the MCP client after changing config.
+6. For `get_pozsar_advisor_snapshot`, confirm `POZSAR_MARKET_CONTEXT_JSON` or `market_context_path` points to a valid market context JSON file.
+7. Restart the MCP client after changing config.
 
 If the MCP client cannot start the server:
 
