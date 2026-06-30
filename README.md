@@ -42,6 +42,8 @@ See [docs/README.md](docs/README.md) for details.
 
 ## Fresh Clone Install And Run
 
+For a shorter guided path with a raw MCP demo search, see [docs/QUICKSTART.md](docs/QUICKSTART.md).
+
 From a fresh clone:
 
 ```bash
