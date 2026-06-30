@@ -4,8 +4,8 @@ use pozsar_mcp::search::{
     search_chunks_with_filters, SearchFilters,
 };
 use pozsar_mcp::tools::{
-    load_chunks_jsonl, PozsarCorpusMcp, ReadPageContextParams, ResearchQuestionParams,
-    SearchPozsarParams, SERVER_NAME, SERVER_VERSION,
+    load_chunks_jsonl, LiquiditySignalParams, PozsarCorpusMcp, ReadPageContextParams,
+    ResearchQuestionParams, SearchPozsarParams, SERVER_NAME, SERVER_VERSION,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use serde_json::Value;
@@ -108,6 +108,9 @@ fn mcp_status_reports_server_metadata_and_corpus_counts() {
         .as_array()
         .unwrap()
         .contains(&Value::String("get_pozsar_kb_status".to_string())));
+    assert!(status["tools"].as_array().unwrap().contains(&Value::String(
+        "extract_pozsar_liquidity_signals".to_string()
+    )));
 }
 
 #[test]
@@ -892,6 +895,291 @@ fn mcp_research_question_limits_after_sorting_merged_candidates() {
         .unwrap()
         .iter()
         .any(|source| source == "key_phrase"));
+}
+
+#[test]
+fn mcp_liquidity_signals_return_evidence_only_cross_asset_structure() {
+    let chunks = vec![
+        chunk(
+            "doc",
+            "Liquidity.pdf",
+            1,
+            0,
+            "Collateral scarcity can tighten dollar liquidity and stress repo funding.",
+            "Dollar Liquidity",
+            &["collateral", "dollar_liquidity", "repo"],
+        ),
+        chunk(
+            "doc",
+            "Liquidity.pdf",
+            2,
+            0,
+            "FX swap stress can increase demand for dollar liquidity.",
+            "Dollar Liquidity",
+            &["dollar_liquidity", "fx_swaps"],
+        ),
+    ];
+    let service = PozsarCorpusMcp::new(chunks);
+
+    let response = service.extract_pozsar_liquidity_signals(Parameters(LiquiditySignalParams {
+        question: "What does the corpus say about collateral scarcity and dollar liquidity?"
+            .to_string(),
+        assets: vec![
+            "BTC".to_string(),
+            "ETH".to_string(),
+            "SPY".to_string(),
+            "QQQ".to_string(),
+            "GLD".to_string(),
+            "TLT".to_string(),
+            "DXY".to_string(),
+        ],
+        themes: Some(vec![
+            "collateral".to_string(),
+            "dollar_liquidity".to_string(),
+            "repo".to_string(),
+        ]),
+        limit: Some(4),
+    }));
+    let signals: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(
+        signals["question"],
+        "What does the corpus say about collateral scarcity and dollar liquidity?"
+    );
+    assert_eq!(
+        signals["macro_themes"],
+        serde_json::json!(["collateral", "dollar_liquidity", "repo"])
+    );
+    assert!(signals["citations"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("Liquidity.pdf:1".to_string())));
+    assert!(signals["liquidity_conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|condition| condition["label"] == "collateral_scarcity"
+            && condition["direction"] == "tightening"
+            && condition["confidence"] == "medium"
+            && condition["evidence"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|evidence| evidence["citation"] == "Liquidity.pdf:1")));
+    assert!(signals["cross_asset_implications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|implication| implication["asset"] == "DXY"
+            && implication["bias"] == "supportive"
+            && implication["citations"]
+                .as_array()
+                .unwrap()
+                .contains(&Value::String("Liquidity.pdf:1".to_string()))));
+    assert!(
+        signals["cross_asset_implications"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|implication| implication["asset"] == "BTC"
+                && implication["bias"] == "risk_negative")
+    );
+    assert!(signals["unknowns"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("No live market data included".to_string())));
+
+    let rendered = response.to_ascii_lowercase();
+    assert!(!rendered.contains("buy "));
+    assert!(!rendered.contains("sell "));
+    assert!(!rendered.contains("short "));
+}
+
+#[test]
+fn mcp_liquidity_signals_classify_easing_without_inverting_asset_bias() {
+    let chunks = vec![chunk(
+        "doc",
+        "Easing.pdf",
+        1,
+        0,
+        "Dollar liquidity and funding conditions are easing as reserves become ample.",
+        "Dollar Liquidity",
+        &["dollar_liquidity"],
+    )];
+    let service = PozsarCorpusMcp::new(chunks);
+
+    let response = service.extract_pozsar_liquidity_signals(Parameters(LiquiditySignalParams {
+        question: "Are dollar liquidity and funding conditions easing?".to_string(),
+        assets: vec!["DXY".to_string(), "BTC".to_string()],
+        themes: Some(vec!["dollar_liquidity".to_string()]),
+        limit: Some(3),
+    }));
+    let signals: Value = serde_json::from_str(&response).unwrap();
+
+    assert!(signals["liquidity_conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|condition| condition["label"] == "dollar_liquidity_easing"
+            && condition["direction"] == "easing"
+            && condition["evidence"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|evidence| evidence["citation"] == "Easing.pdf:1")));
+    assert!(!signals["liquidity_conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|condition| condition["direction"] == "tightening"));
+    assert!(signals["cross_asset_implications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(
+            |implication| implication["asset"] == "DXY" && implication["bias"] == "less_supportive"
+        ));
+    assert!(signals["cross_asset_implications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(
+            |implication| implication["asset"] == "BTC" && implication["bias"] == "risk_supportive"
+        ));
+}
+
+#[test]
+fn mcp_liquidity_signals_restrict_implication_citations_to_matched_conditions() {
+    let chunks = vec![
+        chunk(
+            "signal",
+            "Signal.pdf",
+            1,
+            0,
+            "Collateral scarcity can tighten dollar liquidity and stress repo markets.",
+            "Signal",
+            &["collateral", "dollar_liquidity", "repo"],
+        ),
+        chunk(
+            "related",
+            "Related.pdf",
+            2,
+            0,
+            "Collateral dollar liquidity balance sheet plumbing is discussed here.",
+            "Related",
+            &["collateral", "dollar_liquidity"],
+        ),
+    ];
+    let service = PozsarCorpusMcp::new(chunks);
+
+    let response = service.extract_pozsar_liquidity_signals(Parameters(LiquiditySignalParams {
+        question: "collateral dollar liquidity balance sheet plumbing".to_string(),
+        assets: vec!["DXY".to_string()],
+        themes: Some(vec![
+            "collateral".to_string(),
+            "dollar_liquidity".to_string(),
+        ]),
+        limit: Some(5),
+    }));
+    let signals: Value = serde_json::from_str(&response).unwrap();
+
+    assert!(signals["citations"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("Related.pdf:2".to_string())));
+    let dxy = signals["cross_asset_implications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|implication| implication["asset"] == "DXY")
+        .unwrap();
+    assert!(dxy["citations"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("Signal.pdf:1".to_string())));
+    assert!(!dxy["citations"]
+        .as_array()
+        .unwrap()
+        .contains(&Value::String("Related.pdf:2".to_string())));
+}
+
+#[test]
+fn mcp_liquidity_signals_handle_inflected_signal_terms() {
+    let tightening_service = PozsarCorpusMcp::new(vec![chunk(
+        "tightening",
+        "Tightening.pdf",
+        1,
+        0,
+        "Dollar liquidity is tightening and funding conditions are getting tighter.",
+        "Tightening",
+        &["dollar_liquidity"],
+    )]);
+
+    let tightening_response =
+        tightening_service.extract_pozsar_liquidity_signals(Parameters(LiquiditySignalParams {
+            question: "Is dollar liquidity tightening?".to_string(),
+            assets: vec!["DXY".to_string()],
+            themes: Some(vec!["dollar_liquidity".to_string()]),
+            limit: Some(2),
+        }));
+    let tightening_signals: Value = serde_json::from_str(&tightening_response).unwrap();
+
+    assert!(tightening_signals["liquidity_conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(
+            |condition| condition["label"] == "dollar_liquidity_tightness"
+                && condition["direction"] == "tightening"
+                && condition["evidence"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|evidence| evidence["citation"] == "Tightening.pdf:1")
+        ));
+    assert!(tightening_signals["cross_asset_implications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|implication| implication["asset"] == "DXY" && implication["bias"] == "supportive"));
+
+    let easing_service = PozsarCorpusMcp::new(vec![chunk(
+        "improved",
+        "Improved.pdf",
+        2,
+        0,
+        "Dollar liquidity has improved as reserves are becoming more ample.",
+        "Improved",
+        &["dollar_liquidity"],
+    )]);
+
+    let easing_response =
+        easing_service.extract_pozsar_liquidity_signals(Parameters(LiquiditySignalParams {
+            question: "Has dollar liquidity improved?".to_string(),
+            assets: vec!["BTC".to_string()],
+            themes: Some(vec!["dollar_liquidity".to_string()]),
+            limit: Some(2),
+        }));
+    let easing_signals: Value = serde_json::from_str(&easing_response).unwrap();
+
+    assert!(easing_signals["liquidity_conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|condition| condition["label"] == "dollar_liquidity_easing"
+            && condition["direction"] == "easing"
+            && condition["evidence"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|evidence| evidence["citation"] == "Improved.pdf:2")));
+    assert!(easing_signals["cross_asset_implications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(
+            |implication| implication["asset"] == "BTC" && implication["bias"] == "risk_supportive"
+        ));
 }
 
 fn chunk(

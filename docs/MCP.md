@@ -134,7 +134,8 @@ Output:
     "explain_pozsar_search",
     "read_pozsar_source",
     "read_pozsar_page_context",
-    "answer_pozsar_research_question"
+    "answer_pozsar_research_question",
+    "extract_pozsar_liquidity_signals"
   ]
 }
 ```
@@ -376,6 +377,76 @@ Output:
 ```
 
 Use this as the default tool for open-ended corpus research. It fans out through the original question, a deterministic key-phrase query, and optional theme-filtered searches, then deduplicates evidence by document page and includes neighboring page context.
+
+### `extract_pozsar_liquidity_signals`
+
+Builds deterministic, evidence-only macro liquidity signals from corpus evidence and maps them into cross-asset implications for a future advisor layer. This tool does not generate trade recommendations, position sizing, execution instructions, or financial advice.
+
+Input:
+
+```json
+{
+  "question": "What does the corpus say about collateral scarcity and dollar liquidity?",
+  "assets": ["BTC", "ETH", "SPY", "QQQ", "GLD", "TLT", "DXY"],
+  "themes": ["collateral", "dollar_liquidity", "repo"],
+  "limit": 8
+}
+```
+
+Parameters:
+
+- `question` required string.
+- `assets` required array of asset symbols. Symbols are normalized to uppercase and deduplicated.
+- `themes` optional array of theme labels. When present, the tool runs additional theme-filtered searches through the research bundle path.
+- `limit` optional integer, clamped to `1..=10`, default `5`.
+
+Output:
+
+```json
+{
+  "question": "What does the corpus say about collateral scarcity and dollar liquidity?",
+  "macro_themes": ["collateral", "dollar_liquidity", "repo"],
+  "liquidity_conditions": [
+    {
+      "label": "collateral_scarcity",
+      "direction": "tightening",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "citation": "a-decade-on-money-31.pdf:3",
+          "doc_id": "a-decade-on-money-31",
+          "page": 3,
+          "themes": ["collateral", "repo", "dollar_liquidity"],
+          "snippet": "Matched source snippet...",
+          "query_sources": ["original_question", "theme_filtered"]
+        }
+      ]
+    }
+  ],
+  "cross_asset_implications": [
+    {
+      "asset": "DXY",
+      "bias": "supportive",
+      "reason": "Corpus evidence points to tighter dollar funding conditions, which can increase demand for dollar liquidity.",
+      "citations": ["a-decade-on-money-31.pdf:3"]
+    },
+    {
+      "asset": "BTC",
+      "bias": "risk_negative",
+      "reason": "Corpus evidence points to liquidity tightening, a macro condition that can pressure duration-sensitive or speculative risk assets.",
+      "citations": ["a-decade-on-money-31.pdf:3"]
+    }
+  ],
+  "unknowns": [
+    "No live market data included",
+    "Corpus evidence only",
+    "No execution recommendation, position sizing, or risk limit included"
+  ],
+  "citations": ["a-decade-on-money-31.pdf:3"]
+}
+```
+
+Use this as the bridge between corpus retrieval and a future trading advisor. It structures macro/liquidity evidence for downstream systems, but downstream systems must still add market data, trend, volatility, positioning, risk constraints, and execution rules.
 
 ### `read_pozsar_source`
 

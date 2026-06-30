@@ -4,6 +4,8 @@ use crate::search::{
     explain_search_chunks_with_filters, read_page_context, search_chunks_with_filters,
     SearchFilters,
 };
+use crate::signals::extract_liquidity_signals;
+pub use crate::signals::LiquiditySignalParams;
 use anyhow::{Context, Result};
 use pozsar_kb::chunk::KnowledgeChunk;
 use rmcp::{
@@ -77,6 +79,7 @@ impl PozsarCorpusMcp {
                 "read_pozsar_source",
                 "read_pozsar_page_context",
                 "answer_pozsar_research_question",
+                "extract_pozsar_liquidity_signals",
             ],
         }
     }
@@ -231,6 +234,16 @@ impl PozsarCorpusMcp {
         Parameters(params): Parameters<ResearchQuestionParams>,
     ) -> String {
         serde_json::to_string_pretty(&answer_research_question(&self.chunks, params)).unwrap()
+    }
+
+    #[tool(
+        description = "Extract deterministic, evidence-only macro liquidity signals and cross-asset implications from the Pozsar corpus. Does not generate trade recommendations. Read-only."
+    )]
+    pub fn extract_pozsar_liquidity_signals(
+        &self,
+        Parameters(params): Parameters<LiquiditySignalParams>,
+    ) -> String {
+        serde_json::to_string_pretty(&extract_liquidity_signals(&self.chunks, params)).unwrap()
     }
 }
 

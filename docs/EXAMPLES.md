@@ -40,6 +40,12 @@ Compare raw search and research-question retrieval:
 Use pozsar-corpus to search for "outside money commodities" directly, then use answer_pozsar_research_question for the same query. Compare returned citations.
 ```
 
+Extract advisor-ready macro liquidity signals without trade recommendations:
+
+```text
+Use pozsar-corpus to extract liquidity signals for: What does the corpus say about collateral scarcity and dollar liquidity? Use assets BTC, ETH, SPY, QQQ, GLD, TLT, and DXY; themes collateral, dollar_liquidity, and repo; limit 8. Return structured evidence only, not trading advice.
+```
+
 ## Eval Commands
 
 Run the public fixture through the research-question retrieval path and write a JSON artifact:
