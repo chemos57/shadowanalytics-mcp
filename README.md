@@ -22,12 +22,14 @@ This project turns that corpus into a local, source-cited research layer so agen
 - Prepares Qdrant-compatible payloads for future vector indexing
 - Builds deterministic market context JSON from local price CSV files
 - Builds deterministic advisor snapshots that combine corpus liquidity signals with market context
+- Builds deterministic advisor policy JSON from advisor snapshots without producing trade recommendations
 
 ## Repository Layout
 
 ```text
 crates/
   advisor-core/   Offline advisor snapshot composition logic
+  advisor-policy/ Deterministic advisor policy assessment logic
   pozsar-kb/      Core corpus library: manifesting, extraction, chunking, themes, inspection
   corpus-cli/     CLI for building and inspecting generated corpus artifacts
   market-context/ Offline cross-asset market context library
@@ -35,7 +37,7 @@ crates/
 docs/             Source map, usage docs, and ignored downloaded PDFs
 data/knowledge/   Generated corpus artifacts; ignored by git
 data/market/      Local/sample market CSV inputs and ignored generated JSON context
-data/advisor/     Ignored generated advisor snapshots
+data/advisor/     Ignored generated advisor snapshots and policy artifacts
 ```
 
 ## Local PDF Inputs
@@ -160,6 +162,18 @@ cargo run -p corpus-cli -- advisor-snapshot \
 The output includes source-cited liquidity signals, market context, per-asset macro/market alignment, and a combined regime label such as `macro_tightening_market_risk_on`. It is deterministic context for a future advisor layer, not trading advice.
 
 If `--market-health` is supplied, its `as_of` must match the market context `as_of`; stale or mismatched health sidecars are rejected.
+
+## Build Advisor Policy
+
+Convert an advisor snapshot into deterministic asset assessments:
+
+```bash
+cargo run -p corpus-cli -- advisor-policy \
+  --snapshot data/advisor/snapshot.json \
+  --out data/advisor/policy.json
+```
+
+The policy output includes per-asset stance, confidence, drivers, risks, and required checks. It remains context-only: no trade recommendation, position sizing, or execution instruction is emitted.
 
 ## Verify PDF Sources
 

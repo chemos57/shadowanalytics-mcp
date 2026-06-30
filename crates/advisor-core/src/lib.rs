@@ -1,8 +1,8 @@
 use market_context::{MarketContext, MarketDataHealth};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LiquiditySignalBundle {
     pub question: String,
     pub macro_themes: Vec<String>,
@@ -12,7 +12,7 @@ pub struct LiquiditySignalBundle {
     pub citations: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LiquidityCondition {
     pub label: String,
     pub direction: String,
@@ -20,7 +20,7 @@ pub struct LiquidityCondition {
     pub evidence: Vec<LiquiditySignalEvidence>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiquiditySignalEvidence {
     pub citation: String,
     pub doc_id: String,
@@ -30,7 +30,7 @@ pub struct LiquiditySignalEvidence {
     pub query_sources: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CrossAssetImplication {
     pub asset: String,
     pub bias: String,
@@ -38,7 +38,7 @@ pub struct CrossAssetImplication {
     pub citations: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdvisorSnapshot {
     pub question: String,
     pub liquidity_signals: LiquiditySignalBundle,
@@ -50,7 +50,7 @@ pub struct AdvisorSnapshot {
     pub unknowns: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AdvisorConfirmation {
     pub asset: String,
     pub macro_bias: String,
@@ -59,7 +59,7 @@ pub struct AdvisorConfirmation {
     pub reason: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AdvisorRegime {
     pub macro_liquidity: String,
     pub market_risk: String,

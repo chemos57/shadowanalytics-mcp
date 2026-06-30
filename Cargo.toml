@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/advisor-core",
+    "crates/advisor-policy",
     "crates/pozsar-kb",
     "crates/corpus-cli",
     "crates/market-data-adapters",

@@ -46,6 +46,16 @@ Extract advisor-ready macro liquidity signals without trade recommendations:
 Use pozsar-corpus to extract liquidity signals for: What does the corpus say about collateral scarcity and dollar liquidity? Use assets BTC, ETH, SPY, QQQ, GLD, TLT, and DXY; themes collateral, dollar_liquidity, and repo; limit 8. Return structured evidence only, not trading advice.
 ```
 
+## Advisor Policy CLI
+
+Build a deterministic policy artifact from a generated advisor snapshot:
+
+```bash
+cargo run -p corpus-cli -- advisor-policy \
+  --snapshot data/advisor/snapshot.json \
+  --out data/advisor/policy.json
+```
+
 ## Eval Commands
 
 Run the public fixture through the research-question retrieval path and write a JSON artifact:
@@ -73,6 +83,15 @@ cargo run -p corpus-cli -- eval-search \
 ```
 
 Use `--fail-fast` for larger private suites when debugging the first regression.
+
+Evaluate deterministic advisor policy rules against a fixture-backed snapshot:
+
+```bash
+cargo run -p corpus-cli -- eval-advisor-policy \
+  --cases eval/fixtures/advisor_policy_eval.json \
+  --format json \
+  --output data/eval/advisor-policy-report.json
+```
 
 ## Eval Report
 

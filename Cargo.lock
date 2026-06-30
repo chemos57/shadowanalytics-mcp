@@ -27,6 +27,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "advisor-policy"
+version = "0.1.0"
+dependencies = [
+ "advisor-core",
+ "market-context",
+ "serde",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -328,6 +337,7 @@ name = "corpus-cli"
 version = "0.1.0"
 dependencies = [
  "advisor-core",
+ "advisor-policy",
  "anyhow",
  "chrono",
  "clap",
