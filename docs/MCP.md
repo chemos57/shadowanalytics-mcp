@@ -150,7 +150,8 @@ Output:
     "read_pozsar_page_context",
     "answer_pozsar_research_question",
     "extract_pozsar_liquidity_signals",
-    "get_pozsar_advisor_snapshot"
+    "get_pozsar_advisor_snapshot",
+    "get_pozsar_advisor_policy"
   ]
 }
 ```
@@ -584,6 +585,67 @@ scripts/demo-mcp-advisor.sh
 ```
 
 Use this when an MCP client needs one deterministic object combining corpus macro/liquidity evidence with current offline market context. A later advisor or portfolio layer can consume this snapshot together with risk rules, but this tool itself remains evidence/context only.
+
+### `get_pozsar_advisor_policy`
+
+Builds deterministic advisor policy assessments from Pozsar corpus liquidity evidence plus offline market context. This tool reuses the advisor snapshot pipeline internally, then converts the snapshot into compact per-asset policy assessments. It is read-only and does not generate trade recommendations, position sizing, execution instructions, or financial advice.
+
+Input:
+
+```json
+{
+  "question": "What does collateral scarcity imply for BTC and DXY?",
+  "assets": ["BTC", "DXY"],
+  "themes": ["collateral", "dollar_liquidity", "repo"],
+  "market_context_path": "data/market/context.json",
+  "market_context_health_path": "data/market/context.health.json",
+  "limit": 8
+}
+```
+
+Parameters are the same as `get_pozsar_advisor_snapshot`.
+
+Output:
+
+```json
+{
+  "as_of": "2026-06-30",
+  "regime": "macro_tightening_market_risk_on",
+  "asset_assessments": [
+    {
+      "asset": "BTC",
+      "macro_bias": "risk_negative",
+      "market_trend": "up",
+      "alignment": "divergent",
+      "stance": "watch",
+      "confidence": "medium",
+      "drivers": [
+        "Macro liquidity evidence is risk-negative",
+        "BTC trend is still up"
+      ],
+      "risks": [
+        "Macro/market divergence",
+        "No positioning data",
+        "No volatility regime rules"
+      ],
+      "required_checks": [
+        "Confirm current volatility",
+        "Check portfolio exposure",
+        "Check invalidation level"
+      ]
+    }
+  ],
+  "unknowns": [
+    "No live data",
+    "No position sizing",
+    "No execution recommendation",
+    "No positions",
+    "No account risk limits"
+  ]
+}
+```
+
+Use this when an MCP client needs the final deterministic advisor interpretation object. It remains context-only; a future portfolio/risk layer must still add positions, constraints, exposure limits, time horizon, and execution rules before any recommendation logic exists.
 
 ### `read_pozsar_source`
 

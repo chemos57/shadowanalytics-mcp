@@ -245,6 +245,7 @@ Available MCP tools:
 - `answer_pozsar_research_question`
 - `extract_pozsar_liquidity_signals`
 - `get_pozsar_advisor_snapshot`
+- `get_pozsar_advisor_policy`
 
 Search results include citations in `file_name:page` format.
 

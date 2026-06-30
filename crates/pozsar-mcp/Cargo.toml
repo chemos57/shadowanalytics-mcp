@@ -6,6 +6,7 @@ version.workspace = true
 
 [dependencies]
 advisor-core = { path = "../advisor-core" }
+advisor-policy = { path = "../advisor-policy" }
 anyhow.workspace = true
 market-context = { path = "../market-context" }
 pozsar-kb = { path = "../pozsar-kb" }
