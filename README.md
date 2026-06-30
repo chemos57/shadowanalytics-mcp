@@ -1,8 +1,8 @@
 # Pozsar Corpus MCP
 
-Rust tooling for building a local, source-cited knowledge base from a Zoltan Pozsar PDF corpus and exposing it through a read-only MCP server.
+Rust tooling for building a local, source-cited knowledge base from a Zoltan Pozsar PDF corpus, exposing it through a read-only MCP server, and generating offline cross-asset market context snapshots.
 
-The project is intentionally corpus-only. It does not include market data ingestion, trading signals, backtesting, portfolio management, broker adapters, exchange adapters, or execution code.
+The project does not include live market data ingestion, trading signals, backtesting, portfolio management, broker adapters, exchange adapters, or execution code. Market context is offline and file-based only.
 
 ## Why Pozsar
 
@@ -20,6 +20,7 @@ This project turns that corpus into a local, source-cited research layer so agen
 - Validates generated corpus artifacts with `corpus inspect`
 - Runs a read-only MCP server for source-cited corpus search
 - Prepares Qdrant-compatible payloads for future vector indexing
+- Builds deterministic market context JSON from local price CSV files
 
 ## Repository Layout
 
@@ -27,9 +28,11 @@ This project turns that corpus into a local, source-cited research layer so agen
 crates/
   pozsar-kb/      Core corpus library: manifesting, extraction, chunking, themes, inspection
   corpus-cli/     CLI for building and inspecting generated corpus artifacts
+  market-context/ Offline cross-asset market context library
   pozsar-mcp/     Read-only MCP server over generated corpus chunks
 docs/             Source map, usage docs, and ignored downloaded PDFs
 data/knowledge/   Generated corpus artifacts; ignored by git
+data/market/      Local/sample market CSV inputs and ignored generated JSON context
 ```
 
 ## Local PDF Inputs
@@ -94,6 +97,26 @@ cargo run -p corpus-cli -- inspect --out data/knowledge
 ```
 
 The inspection command reports document/page/chunk counts, empty pages, pages without chunks, validation issues, and theme distribution. It exits nonzero if validation issues are found.
+
+## Build Market Context
+
+Generate an offline market context snapshot from a local CSV file:
+
+```bash
+cargo run -p corpus-cli -- market-context \
+  --prices data/market/sample_prices.csv \
+  --out data/market/context.json
+```
+
+Input CSV columns:
+
+```csv
+date,symbol,close
+2026-06-24,BTC,101000
+2026-06-25,BTC,103000
+```
+
+The output includes per-asset returns, 20-observation trend, annualized volatility, drawdown, and a deterministic cross-asset regime summary. This is local market context only; it does not produce trade recommendations.
 
 ## Verify PDF Sources
 

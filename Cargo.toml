@@ -2,6 +2,7 @@
 members = [
     "crates/pozsar-kb",
     "crates/corpus-cli",
+    "crates/market-context",
     "crates/pozsar-mcp",
 ]
 resolver = "2"

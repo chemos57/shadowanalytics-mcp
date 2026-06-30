@@ -2,6 +2,81 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[test]
+fn market_context_writes_cross_asset_json() {
+    let temp_dir =
+        std::env::temp_dir().join(format!("pozsar_market_context_{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let prices = temp_dir.join("prices.csv");
+    let out = temp_dir.join("context.json");
+    let mut csv = String::from("date,symbol,close\n");
+    for day in 1..=21 {
+        let date = format!("2026-06-{day:02}");
+        csv.push_str(&format!("{date},BTC,{}\n", 100.0 + day as f64));
+        csv.push_str(&format!("{date},SPY,{}\n", 500.0 + day as f64));
+        csv.push_str(&format!("{date},QQQ,{}\n", 400.0 + day as f64));
+        csv.push_str(&format!("{date},DXY,{}\n", 120.0 - day as f64));
+        csv.push_str(&format!("{date},TLT,{}\n", 90.0 + day as f64));
+    }
+    std::fs::write(&prices, csv).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "market-context",
+            "--prices",
+            prices.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("wrote market context"));
+    assert!(stdout.contains("risk_regime: risk_on"));
+
+    let context: serde_json::Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+    assert_eq!(context["as_of"], "2026-06-21");
+    assert_eq!(context["cross_asset"]["risk_regime"], "risk_on");
+    assert_eq!(context["cross_asset"]["dxy_trend"], "down");
+    assert_eq!(context["cross_asset"]["rates_proxy"], "TLT_up");
+    assert_eq!(context["assets"][0]["symbol"], "BTC");
+    assert_eq!(context["assets"][0]["trend_20d"], "up");
+}
+
+#[test]
+fn market_context_rejects_non_finite_prices() {
+    let temp_dir = std::env::temp_dir().join(format!(
+        "pozsar_market_context_non_finite_{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let prices = temp_dir.join("prices.csv");
+    let out = temp_dir.join("context.json");
+    std::fs::write(&prices, "date,symbol,close\n2026-06-24,BTC,NaN\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "market-context",
+            "--prices",
+            prices.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    assert!(!out.exists());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("close must be finite"));
+}
+
+#[test]
 fn eval_search_reports_passes_and_summary() {
     let workspace = workspace_root();
     let chunks = workspace

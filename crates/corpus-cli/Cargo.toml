@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+market-context = { path = "../market-context" }
 pozsar-kb = { path = "../pozsar-kb" }
 pozsar-mcp = { path = "../pozsar-mcp" }
 reqwest.workspace = true
