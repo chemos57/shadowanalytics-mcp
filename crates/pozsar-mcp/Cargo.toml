@@ -5,7 +5,9 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+advisor-core = { path = "../advisor-core" }
 anyhow.workspace = true
+market-context = { path = "../market-context" }
 pozsar-kb = { path = "../pozsar-kb" }
 rmcp = { workspace = true, features = ["transport-io"] }
 schemars.workspace = true

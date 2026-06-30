@@ -6,5 +6,4 @@ version.workspace = true
 
 [dependencies]
 market-context = { path = "../market-context" }
-pozsar-mcp = { path = "../pozsar-mcp" }
 serde.workspace = true

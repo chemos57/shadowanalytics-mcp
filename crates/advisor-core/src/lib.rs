@@ -1,6 +1,41 @@
 use market_context::MarketContext;
-use pozsar_mcp::signals::{CrossAssetImplication, LiquiditySignalBundle};
 use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+pub struct LiquiditySignalBundle {
+    pub question: String,
+    pub macro_themes: Vec<String>,
+    pub liquidity_conditions: Vec<LiquidityCondition>,
+    pub cross_asset_implications: Vec<CrossAssetImplication>,
+    pub unknowns: Vec<String>,
+    pub citations: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LiquidityCondition {
+    pub label: String,
+    pub direction: String,
+    pub confidence: String,
+    pub evidence: Vec<LiquiditySignalEvidence>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiquiditySignalEvidence {
+    pub citation: String,
+    pub doc_id: String,
+    pub page: u32,
+    pub themes: Vec<String>,
+    pub snippet: Option<String>,
+    pub query_sources: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CrossAssetImplication {
+    pub asset: String,
+    pub bias: String,
+    pub reason: String,
+    pub citations: Vec<String>,
+}
 
 #[derive(Debug, Serialize)]
 pub struct AdvisorSnapshot {
@@ -193,7 +228,6 @@ enum ExpectedTrend {
 mod tests {
     use super::*;
     use market_context::{AssetContext, CrossAssetContext};
-    use pozsar_mcp::signals::{CrossAssetImplication, LiquidityCondition};
 
     #[test]
     fn builds_advisor_snapshot_with_alignment_and_regime() {

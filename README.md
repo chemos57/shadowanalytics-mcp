@@ -187,10 +187,12 @@ By default, the MCP server reads `data/knowledge/chunks/pozsar_chunks.jsonl`:
 cargo run -p pozsar-mcp
 ```
 
-To point it at another chunk artifact:
+To point it at another chunk artifact or market context snapshot:
 
 ```bash
-POZSAR_CHUNKS_JSONL=/path/to/pozsar_chunks.jsonl cargo run -p pozsar-mcp
+POZSAR_CHUNKS_JSONL=/path/to/pozsar_chunks.jsonl \
+POZSAR_MARKET_CONTEXT_JSON=/path/to/context.json \
+  cargo run -p pozsar-mcp
 ```
 
 Available MCP tools:
@@ -204,8 +206,15 @@ Available MCP tools:
 - `read_pozsar_page_context`
 - `answer_pozsar_research_question`
 - `extract_pozsar_liquidity_signals`
+- `get_pozsar_advisor_snapshot`
 
 Search results include citations in `file_name:page` format.
+
+Run a raw MCP advisor snapshot demo after building the release binary and local artifacts:
+
+```bash
+scripts/demo-mcp-advisor.sh
+```
 
 For Claude Desktop and Codex configuration examples, tool parameters, and response shapes, see [docs/MCP.md](docs/MCP.md).
 

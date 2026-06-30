@@ -4,8 +4,8 @@ use pozsar_mcp::search::{
     search_chunks_with_filters, SearchFilters,
 };
 use pozsar_mcp::tools::{
-    load_chunks_jsonl, LiquiditySignalParams, PozsarCorpusMcp, ReadPageContextParams,
-    ResearchQuestionParams, SearchPozsarParams, SERVER_NAME, SERVER_VERSION,
+    load_chunks_jsonl, AdvisorSnapshotParams, LiquiditySignalParams, PozsarCorpusMcp,
+    ReadPageContextParams, ResearchQuestionParams, SearchPozsarParams, SERVER_NAME, SERVER_VERSION,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use serde_json::Value;
@@ -1180,6 +1180,94 @@ fn mcp_liquidity_signals_handle_inflected_signal_terms() {
         .any(
             |implication| implication["asset"] == "BTC" && implication["bias"] == "risk_supportive"
         ));
+}
+
+#[test]
+fn mcp_advisor_snapshot_uses_market_context_and_returns_structured_snapshot() {
+    let chunks = vec![chunk(
+        "doc",
+        "Liquidity.pdf",
+        1,
+        0,
+        "Collateral scarcity can tighten dollar liquidity and stress repo funding.",
+        "Dollar Liquidity",
+        &["collateral", "dollar_liquidity", "repo"],
+    )];
+    let temp_dir = std::env::temp_dir().join(format!(
+        "pozsar_mcp_advisor_snapshot_{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let market_context_path = temp_dir.join("market_context.json");
+    std::fs::write(
+        &market_context_path,
+        r#"{
+  "as_of": "2026-06-30",
+  "assets": [
+    {
+      "symbol": "BTC",
+      "last_close": 100.0,
+      "return_1d": 0.01,
+      "return_5d": 0.02,
+      "return_20d": 0.05,
+      "trend_20d": "up",
+      "volatility_20d": 0.2,
+      "drawdown_20d": 0.0
+    },
+    {
+      "symbol": "DXY",
+      "last_close": 105.0,
+      "return_1d": 0.01,
+      "return_5d": 0.02,
+      "return_20d": 0.04,
+      "trend_20d": "up",
+      "volatility_20d": 0.1,
+      "drawdown_20d": 0.0
+    }
+  ],
+  "cross_asset": {
+    "risk_regime": "risk_on",
+    "dxy_trend": "up",
+    "rates_proxy": "TLT_up"
+  }
+}"#,
+    )
+    .unwrap();
+    let service =
+        PozsarCorpusMcp::new(chunks).with_market_context_path(market_context_path.display());
+
+    let response = service.get_pozsar_advisor_snapshot(Parameters(AdvisorSnapshotParams {
+        question: "What does collateral scarcity imply for BTC and DXY?".to_string(),
+        assets: vec!["BTC".to_string(), "DXY".to_string()],
+        themes: Some(vec![
+            "collateral".to_string(),
+            "dollar_liquidity".to_string(),
+            "repo".to_string(),
+        ]),
+        market_context_path: None,
+        limit: Some(4),
+    }));
+    let snapshot: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(
+        snapshot["regime"]["combined"],
+        "macro_tightening_market_risk_on"
+    );
+    assert_eq!(snapshot["market_context"]["as_of"], "2026-06-30");
+    assert!(snapshot["confirmations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|confirmation| confirmation["asset"] == "BTC"
+            && confirmation["macro_bias"] == "risk_negative"
+            && confirmation["market_trend"] == "up"
+            && confirmation["alignment"] == "divergent"));
+    let rendered = serde_json::to_string(&snapshot)
+        .unwrap()
+        .to_ascii_lowercase();
+    for forbidden in [" buy ", " sell ", " short ", " leverage "] {
+        assert!(!rendered.contains(forbidden));
+    }
 }
 
 fn chunk(

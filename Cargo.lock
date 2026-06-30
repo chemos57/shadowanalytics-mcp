@@ -22,7 +22,6 @@ name = "advisor-core"
 version = "0.1.0"
 dependencies = [
  "market-context",
- "pozsar-mcp",
  "serde",
 ]
 
@@ -1396,7 +1395,9 @@ dependencies = [
 name = "pozsar-mcp"
 version = "0.1.0"
 dependencies = [
+ "advisor-core",
  "anyhow",
+ "market-context",
  "pozsar-kb",
  "rmcp",
  "schemars 0.8.22",
