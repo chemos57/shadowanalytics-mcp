@@ -1,6 +1,7 @@
+use advisor_core::build_advisor_snapshot;
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use market_context::build_market_context_from_csv;
+use market_context::{build_market_context_from_csv, MarketContext};
 use pozsar_kb::artifacts::{
     read_chunks_jsonl, write_chunks_jsonl, write_manifest, write_pages_jsonl,
 };
@@ -11,6 +12,7 @@ use pozsar_kb::manifest::build_manifest;
 use pozsar_kb::themes::tag_chunks;
 use pozsar_mcp::research::{answer_research_question, ResearchQuestionBundle};
 use pozsar_mcp::search::{search_chunks_with_filters, SearchFilters};
+use pozsar_mcp::signals::{extract_liquidity_signals, LiquiditySignalParams};
 use pozsar_mcp::tools::ResearchQuestionParams;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -78,6 +80,22 @@ enum Command {
     MarketContext {
         #[arg(long)]
         prices: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    AdvisorSnapshot {
+        #[arg(long)]
+        chunks: PathBuf,
+        #[arg(long)]
+        market_context: PathBuf,
+        #[arg(long)]
+        question: String,
+        #[arg(long)]
+        assets: String,
+        #[arg(long)]
+        themes: Option<String>,
+        #[arg(long, default_value_t = 8)]
+        limit: u64,
         #[arg(long)]
         out: PathBuf,
     },
@@ -187,8 +205,51 @@ fn main() -> Result<()> {
             println!("assets: {}", context.assets.len());
             println!("risk_regime: {}", context.cross_asset.risk_regime);
         }
+        Command::AdvisorSnapshot {
+            chunks,
+            market_context,
+            question,
+            assets,
+            themes,
+            limit,
+            out,
+        } => {
+            let chunks = read_chunks_jsonl(&chunks)?;
+            let market_context_json = fs::read_to_string(&market_context)?;
+            let market_context: MarketContext = serde_json::from_str(&market_context_json)?;
+            let liquidity_signals = extract_liquidity_signals(
+                &chunks,
+                LiquiditySignalParams {
+                    question: question.clone(),
+                    assets: parse_csv_arg(&assets),
+                    themes: themes.as_deref().map(parse_csv_arg),
+                    limit: Some(limit),
+                },
+            );
+            let snapshot = build_advisor_snapshot(question, liquidity_signals, market_context);
+            if let Some(parent) = out.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(
+                &out,
+                format!("{}\n", serde_json::to_string_pretty(&snapshot)?),
+            )?;
+            println!("wrote advisor snapshot: {}", out.display());
+            println!("macro_liquidity: {}", snapshot.regime.macro_liquidity);
+            println!("market_risk: {}", snapshot.regime.market_risk);
+            println!("combined: {}", snapshot.regime.combined);
+        }
     }
     Ok(())
+}
+
+fn parse_csv_arg(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn print_inspection_report(report: &CorpusInspection) {

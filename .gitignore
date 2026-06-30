@@ -2,6 +2,7 @@
 /dist/
 /data/knowledge/
 /data/market/*.json
+/data/advisor/*.json
 /dev_docs/
 /eval/*.json
 /eval/local/

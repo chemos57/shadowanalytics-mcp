@@ -1,6 +1,6 @@
 # Pozsar Corpus MCP
 
-Rust tooling for building a local, source-cited knowledge base from a Zoltan Pozsar PDF corpus, exposing it through a read-only MCP server, and generating offline cross-asset market context snapshots.
+Rust tooling for building a local, source-cited knowledge base from a Zoltan Pozsar PDF corpus, exposing it through a read-only MCP server, generating offline cross-asset market context snapshots, and composing advisor-ready context.
 
 The project does not include live market data ingestion, trading signals, backtesting, portfolio management, broker adapters, exchange adapters, or execution code. Market context is offline and file-based only.
 
@@ -21,11 +21,13 @@ This project turns that corpus into a local, source-cited research layer so agen
 - Runs a read-only MCP server for source-cited corpus search
 - Prepares Qdrant-compatible payloads for future vector indexing
 - Builds deterministic market context JSON from local price CSV files
+- Builds deterministic advisor snapshots that combine corpus liquidity signals with market context
 
 ## Repository Layout
 
 ```text
 crates/
+  advisor-core/   Offline advisor snapshot composition logic
   pozsar-kb/      Core corpus library: manifesting, extraction, chunking, themes, inspection
   corpus-cli/     CLI for building and inspecting generated corpus artifacts
   market-context/ Offline cross-asset market context library
@@ -33,6 +35,7 @@ crates/
 docs/             Source map, usage docs, and ignored downloaded PDFs
 data/knowledge/   Generated corpus artifacts; ignored by git
 data/market/      Local/sample market CSV inputs and ignored generated JSON context
+data/advisor/     Ignored generated advisor snapshots
 ```
 
 ## Local PDF Inputs
@@ -117,6 +120,22 @@ date,symbol,close
 ```
 
 The output includes per-asset returns, 20-observation trend, annualized volatility, drawdown, and a deterministic cross-asset regime summary. This is local market context only; it does not produce trade recommendations.
+
+## Build Advisor Snapshot
+
+Combine corpus liquidity evidence with a local market context snapshot:
+
+```bash
+cargo run -p corpus-cli -- advisor-snapshot \
+  --chunks data/knowledge/chunks/pozsar_chunks.jsonl \
+  --market-context data/market/context.json \
+  --question "What does collateral scarcity imply for cross-asset liquidity?" \
+  --assets BTC,ETH,SPY,QQQ,GLD,TLT,DXY \
+  --themes collateral,dollar_liquidity,repo \
+  --out data/advisor/snapshot.json
+```
+
+The output includes source-cited liquidity signals, market context, per-asset macro/market alignment, and a combined regime label such as `macro_tightening_market_risk_on`. It is deterministic context for a future advisor layer, not trading advice.
 
 ## Verify PDF Sources
 
