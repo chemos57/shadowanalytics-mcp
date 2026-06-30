@@ -1420,6 +1420,7 @@ name = "pozsar-mcp"
 version = "0.1.0"
 dependencies = [
  "advisor-core",
+ "advisor-policy",
  "anyhow",
  "market-context",
  "pozsar-kb",

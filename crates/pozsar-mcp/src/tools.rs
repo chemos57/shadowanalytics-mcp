@@ -7,6 +7,7 @@ use crate::search::{
 use crate::signals::extract_liquidity_signals;
 pub use crate::signals::LiquiditySignalParams;
 use advisor_core::build_advisor_snapshot_with_health;
+use advisor_policy::build_advisor_policy;
 use anyhow::{Context, Result};
 use market_context::{MarketContext, MarketDataHealth};
 use pozsar_kb::chunk::KnowledgeChunk;
@@ -106,6 +107,7 @@ impl PozsarCorpusMcp {
                 "answer_pozsar_research_question",
                 "extract_pozsar_liquidity_signals",
                 "get_pozsar_advisor_snapshot",
+                "get_pozsar_advisor_policy",
             ],
         }
     }
@@ -339,6 +341,22 @@ impl PozsarCorpusMcp {
     ) -> String {
         match self.advisor_snapshot(params) {
             Ok(snapshot) => serde_json::to_string_pretty(&snapshot).unwrap(),
+            Err(error) => serde_json::to_string_pretty(&serde_json::json!({
+                "error": error.to_string()
+            }))
+            .unwrap(),
+        }
+    }
+
+    #[tool(
+        description = "Build deterministic advisor policy assessments from Pozsar corpus liquidity signals plus offline market context. Does not generate trade recommendations, position sizing, or execution instructions. Read-only."
+    )]
+    pub fn get_pozsar_advisor_policy(
+        &self,
+        Parameters(params): Parameters<AdvisorSnapshotParams>,
+    ) -> String {
+        match self.advisor_snapshot(params).map(build_advisor_policy) {
+            Ok(policy) => serde_json::to_string_pretty(&policy).unwrap(),
             Err(error) => serde_json::to_string_pretty(&serde_json::json!({
                 "error": error.to_string()
             }))

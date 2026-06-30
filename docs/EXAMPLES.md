@@ -46,6 +46,12 @@ Extract advisor-ready macro liquidity signals without trade recommendations:
 Use pozsar-corpus to extract liquidity signals for: What does the corpus say about collateral scarcity and dollar liquidity? Use assets BTC, ETH, SPY, QQQ, GLD, TLT, and DXY; themes collateral, dollar_liquidity, and repo; limit 8. Return structured evidence only, not trading advice.
 ```
 
+Build advisor policy assessments from corpus evidence plus local market context:
+
+```text
+Use pozsar-corpus to get advisor policy for: What does collateral scarcity imply for BTC and DXY? Use assets BTC and DXY; themes collateral, dollar_liquidity, and repo; limit 8. Return the structured policy JSON only. Do not provide trade recommendations, position sizing, or execution instructions.
+```
+
 ## Advisor Policy CLI
 
 Build a deterministic policy artifact from a generated advisor snapshot:

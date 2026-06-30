@@ -1287,6 +1287,106 @@ fn mcp_advisor_snapshot_uses_market_context_and_returns_structured_snapshot() {
 }
 
 #[test]
+fn mcp_advisor_policy_returns_structured_policy_without_snapshot_payload() {
+    let chunks = vec![chunk(
+        "doc",
+        "Liquidity.pdf",
+        1,
+        0,
+        "Collateral scarcity can tighten dollar liquidity and stress repo funding.",
+        "Dollar Liquidity",
+        &["collateral", "dollar_liquidity", "repo"],
+    )];
+    let temp_dir =
+        std::env::temp_dir().join(format!("pozsar_mcp_advisor_policy_{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let market_context_path = temp_dir.join("market_context.json");
+    let market_health_path = temp_dir.join("market_context.health.json");
+    std::fs::write(
+        &market_context_path,
+        r#"{
+  "as_of": "2026-06-30",
+  "assets": [
+    {
+      "symbol": "BTC",
+      "last_close": 100.0,
+      "return_1d": 0.01,
+      "return_5d": 0.02,
+      "return_20d": 0.05,
+      "trend_20d": "up",
+      "volatility_20d": 0.2,
+      "drawdown_20d": 0.0
+    },
+    {
+      "symbol": "DXY",
+      "last_close": 105.0,
+      "return_1d": 0.01,
+      "return_5d": 0.02,
+      "return_20d": 0.04,
+      "trend_20d": "up",
+      "volatility_20d": 0.1,
+      "drawdown_20d": 0.0
+    }
+  ],
+  "cross_asset": {
+    "risk_regime": "risk_on",
+    "dxy_trend": "up",
+    "rates_proxy": "TLT_up"
+  }
+}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        &market_health_path,
+        r#"{
+  "status": "ok",
+  "as_of": "2026-06-30",
+  "missing_assets": [],
+  "stale_assets": [],
+  "warnings": [],
+  "blocking_issues": []
+}"#,
+    )
+    .unwrap();
+    let service = PozsarCorpusMcp::new(chunks)
+        .with_market_context_path(market_context_path.display())
+        .with_market_context_health_path(market_health_path.display());
+
+    let response = service.get_pozsar_advisor_policy(Parameters(AdvisorSnapshotParams {
+        question: "What does collateral scarcity imply for BTC and DXY?".to_string(),
+        assets: vec!["BTC".to_string(), "DXY".to_string()],
+        themes: Some(vec![
+            "collateral".to_string(),
+            "dollar_liquidity".to_string(),
+            "repo".to_string(),
+        ]),
+        market_context_path: None,
+        market_context_health_path: None,
+        limit: Some(4),
+    }));
+    let policy: Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(policy["as_of"], "2026-06-30");
+    assert_eq!(policy["regime"], "macro_tightening_market_risk_on");
+    assert!(policy["market_context"].is_null());
+    assert!(policy["liquidity_signals"].is_null());
+    assert!(policy["asset_assessments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|assessment| assessment["asset"] == "BTC"
+            && assessment["macro_bias"] == "risk_negative"
+            && assessment["market_trend"] == "up"
+            && assessment["alignment"] == "divergent"
+            && assessment["stance"] == "watch"
+            && assessment["confidence"] == "medium"));
+    let rendered = serde_json::to_string(&policy).unwrap().to_ascii_lowercase();
+    for forbidden in [" buy ", " sell ", " short ", " leverage "] {
+        assert!(!rendered.contains(forbidden));
+    }
+}
+
+#[test]
 fn mcp_advisor_snapshot_omits_server_health_for_per_call_context_override() {
     let chunks = vec![chunk(
         "doc",
