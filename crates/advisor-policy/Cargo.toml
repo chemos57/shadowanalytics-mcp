@@ -1,0 +1,10 @@
+[package]
+name = "advisor-policy"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+advisor-core = { path = "../advisor-core" }
+market-context = { path = "../market-context" }
+serde.workspace = true

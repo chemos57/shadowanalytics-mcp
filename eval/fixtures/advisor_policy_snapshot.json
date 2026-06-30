@@ -1,0 +1,50 @@
+{
+  "question": "What does collateral scarcity imply?",
+  "liquidity_signals": {
+    "question": "What does collateral scarcity imply?",
+    "macro_themes": ["collateral", "dollar_liquidity"],
+    "liquidity_conditions": [],
+    "cross_asset_implications": [
+      {
+        "asset": "BTC",
+        "bias": "risk_negative",
+        "reason": "Liquidity tightening can pressure speculative assets.",
+        "citations": ["Signal.pdf:1", "Signal.pdf:2"]
+      }
+    ],
+    "unknowns": ["Corpus evidence only"],
+    "citations": ["Signal.pdf:1"]
+  },
+  "market_context": {
+    "as_of": "2026-06-30",
+    "assets": [],
+    "cross_asset": {
+      "risk_regime": "risk_on",
+      "dxy_trend": "up",
+      "rates_proxy": "TLT_up"
+    }
+  },
+  "market_context_health": {
+    "status": "ok",
+    "as_of": "2026-06-30",
+    "missing_assets": [],
+    "stale_assets": [],
+    "warnings": [],
+    "blocking_issues": []
+  },
+  "confirmations": [
+    {
+      "asset": "BTC",
+      "macro_bias": "risk_negative",
+      "market_trend": "up",
+      "alignment": "divergent",
+      "reason": "Macro liquidity bias is risk_negative, but BTC trend is up."
+    }
+  ],
+  "regime": {
+    "macro_liquidity": "tightening",
+    "market_risk": "risk_on",
+    "combined": "macro_tightening_market_risk_on"
+  },
+  "unknowns": ["No execution recommendation"]
+}

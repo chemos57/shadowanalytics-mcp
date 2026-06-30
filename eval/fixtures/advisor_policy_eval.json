@@ -1,0 +1,18 @@
+[
+  {
+    "name": "btc macro tightening market divergence policy",
+    "snapshot": "advisor_policy_snapshot.json",
+    "expected": {
+      "regime": "macro_tightening_market_risk_on",
+      "assessments": [
+        {
+          "asset": "BTC",
+          "stance": "watch",
+          "confidence": "medium",
+          "alignment": "divergent"
+        }
+      ],
+      "forbidden_terms": ["buy", "sell", "short", "leverage"]
+    }
+  }
+]

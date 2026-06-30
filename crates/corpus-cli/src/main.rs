@@ -1,4 +1,5 @@
 use advisor_core::{build_advisor_snapshot, build_advisor_snapshot_with_health, AdvisorSnapshot};
+use advisor_policy::{build_advisor_policy, AdvisorPolicy};
 use anyhow::{bail, Result};
 use chrono::Utc;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -74,6 +75,14 @@ enum Command {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    EvalAdvisorPolicy {
+        #[arg(long)]
+        cases: PathBuf,
+        #[arg(long, value_enum, default_value_t = EvalOutputFormat::Text)]
+        format: EvalOutputFormat,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
     VerifySources {
         #[arg(long, default_value = "docs")]
         docs: PathBuf,
@@ -123,6 +132,12 @@ enum Command {
         themes: Option<String>,
         #[arg(long, default_value_t = 8)]
         limit: u64,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    AdvisorPolicy {
+        #[arg(long)]
+        snapshot: PathBuf,
         #[arg(long)]
         out: PathBuf,
     },
@@ -212,6 +227,22 @@ fn main() -> Result<()> {
             if report.failed > 0 {
                 bail!(
                     "advisor eval failed: {}/{} passed",
+                    report.passed,
+                    report.total
+                );
+            }
+        }
+        Command::EvalAdvisorPolicy {
+            cases,
+            format,
+            output,
+        } => {
+            let cases = read_advisor_policy_eval_cases(&cases)?;
+            let report = eval_advisor_policy(&cases)?;
+            emit_advisor_policy_eval_report(&report, format, output.as_ref())?;
+            if report.failed > 0 {
+                bail!(
+                    "advisor policy eval failed: {}/{} passed",
                     report.passed,
                     report.total
                 );
@@ -321,6 +352,22 @@ fn main() -> Result<()> {
             println!("macro_liquidity: {}", snapshot.regime.macro_liquidity);
             println!("market_risk: {}", snapshot.regime.market_risk);
             println!("combined: {}", snapshot.regime.combined);
+        }
+        Command::AdvisorPolicy { snapshot, out } => {
+            let snapshot_json = fs::read_to_string(&snapshot)?;
+            let snapshot: AdvisorSnapshot = serde_json::from_str(&snapshot_json)?;
+            let policy = build_advisor_policy(snapshot);
+            if let Some(parent) = out.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(
+                &out,
+                format!("{}\n", serde_json::to_string_pretty(&policy)?),
+            )?;
+            println!("wrote advisor policy: {}", out.display());
+            println!("as_of: {}", policy.as_of);
+            println!("regime: {}", policy.regime);
+            println!("assessments: {}", policy.asset_assessments.len());
         }
     }
     Ok(())
@@ -890,6 +937,13 @@ struct AdvisorEvalCase {
 }
 
 #[derive(Debug, Deserialize)]
+struct AdvisorPolicyEvalCase {
+    name: String,
+    snapshot: PathBuf,
+    expected: AdvisorPolicyExpected,
+}
+
+#[derive(Debug, Deserialize)]
 struct AdvisorExpected {
     macro_liquidity: String,
     market_risk: String,
@@ -903,6 +957,21 @@ struct AdvisorExpectedConfirmation {
     asset: String,
     macro_bias: String,
     market_trend: String,
+    alignment: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AdvisorPolicyExpected {
+    regime: String,
+    assessments: Vec<AdvisorPolicyExpectedAssessment>,
+    forbidden_terms: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AdvisorPolicyExpectedAssessment {
+    asset: String,
+    stance: String,
+    confidence: String,
     alignment: String,
 }
 
@@ -976,6 +1045,31 @@ struct AdvisorEvalRegime {
     combined: String,
 }
 
+#[derive(Serialize)]
+struct AdvisorPolicyEvalReport {
+    total: usize,
+    passed: usize,
+    failed: usize,
+    cases: Vec<AdvisorPolicyEvalCaseReport>,
+}
+
+#[derive(Serialize)]
+struct AdvisorPolicyEvalCaseReport {
+    name: String,
+    passed: bool,
+    failures: Vec<String>,
+    actual_regime: String,
+    actual_assessments: Vec<AdvisorPolicyEvalAssessment>,
+}
+
+#[derive(Serialize)]
+struct AdvisorPolicyEvalAssessment {
+    asset: String,
+    stance: String,
+    confidence: String,
+    alignment: String,
+}
+
 fn read_eval_cases(path: &PathBuf) -> Result<Vec<EvalCase>> {
     let json = fs::read_to_string(path)?;
     Ok(serde_json::from_str(&json)?)
@@ -992,6 +1086,21 @@ fn read_advisor_eval_cases(path: &PathBuf) -> Result<Vec<AdvisorEvalCase>> {
         case.chunks = resolve_advisor_case_path(&case.chunks, case_dir, workspace_root.as_deref());
         case.market_context =
             resolve_advisor_case_path(&case.market_context, case_dir, workspace_root.as_deref());
+    }
+
+    Ok(cases)
+}
+
+fn read_advisor_policy_eval_cases(path: &PathBuf) -> Result<Vec<AdvisorPolicyEvalCase>> {
+    let json = fs::read_to_string(path)?;
+    let mut cases = serde_json::from_str::<Vec<AdvisorPolicyEvalCase>>(&json)?;
+    let case_file = fs::canonicalize(path)?;
+    let case_dir = case_file.parent().unwrap_or_else(|| Path::new("."));
+    let workspace_root = find_workspace_root(case_dir);
+
+    for case in &mut cases {
+        case.snapshot =
+            resolve_advisor_case_path(&case.snapshot, case_dir, workspace_root.as_deref());
     }
 
     Ok(cases)
@@ -1153,6 +1262,77 @@ fn eval_advisor_case(case: &AdvisorEvalCase) -> Result<AdvisorEvalCaseReport> {
     })
 }
 
+fn eval_advisor_policy(cases: &[AdvisorPolicyEvalCase]) -> Result<AdvisorPolicyEvalReport> {
+    let mut reports = Vec::new();
+
+    for case in cases {
+        reports.push(eval_advisor_policy_case(case)?);
+    }
+
+    let passed = reports.iter().filter(|case| case.passed).count();
+    let total = reports.len();
+
+    Ok(AdvisorPolicyEvalReport {
+        total,
+        passed,
+        failed: total.saturating_sub(passed),
+        cases: reports,
+    })
+}
+
+fn eval_advisor_policy_case(case: &AdvisorPolicyEvalCase) -> Result<AdvisorPolicyEvalCaseReport> {
+    let snapshot_json = fs::read_to_string(&case.snapshot)?;
+    let snapshot: AdvisorSnapshot = serde_json::from_str(&snapshot_json)?;
+    let policy = build_advisor_policy(snapshot);
+    let actual_assessments = policy
+        .asset_assessments
+        .iter()
+        .map(|assessment| AdvisorPolicyEvalAssessment {
+            asset: assessment.asset.clone(),
+            stance: assessment.stance.clone(),
+            confidence: assessment.confidence.clone(),
+            alignment: assessment.alignment.clone(),
+        })
+        .collect::<Vec<_>>();
+    let mut failures = Vec::new();
+
+    if policy.regime != case.expected.regime {
+        failures.push(format!(
+            "regime expected {}, got {}",
+            case.expected.regime, policy.regime
+        ));
+    }
+
+    for expected in &case.expected.assessments {
+        if !policy.asset_assessments.iter().any(|actual| {
+            actual.asset == expected.asset
+                && actual.stance == expected.stance
+                && actual.confidence == expected.confidence
+                && actual.alignment == expected.alignment
+        }) {
+            failures.push(format!(
+                "missing assessment {} {} {} {}",
+                expected.asset, expected.stance, expected.confidence, expected.alignment
+            ));
+        }
+    }
+
+    let rendered_policy = render_policy_forbidden_term_scan_fields(&policy)?;
+    for term in &case.expected.forbidden_terms {
+        if contains_forbidden_term(&rendered_policy, term) {
+            failures.push(format!("forbidden term present: {term}"));
+        }
+    }
+
+    Ok(AdvisorPolicyEvalCaseReport {
+        name: case.name.clone(),
+        passed: failures.is_empty(),
+        failures,
+        actual_regime: policy.regime,
+        actual_assessments,
+    })
+}
+
 fn eval_case(
     chunks: &[pozsar_kb::chunk::KnowledgeChunk],
     case: &EvalCase,
@@ -1210,6 +1390,16 @@ fn render_forbidden_term_scan_fields(snapshot: &AdvisorSnapshot) -> Result<Strin
         "confirmations": &snapshot.confirmations,
         "regime": &snapshot.regime,
         "unknowns": &snapshot.unknowns,
+    });
+
+    Ok(serde_json::to_string(&value)?)
+}
+
+fn render_policy_forbidden_term_scan_fields(policy: &AdvisorPolicy) -> Result<String> {
+    let value = serde_json::json!({
+        "regime": &policy.regime,
+        "asset_assessments": &policy.asset_assessments,
+        "unknowns": &policy.unknowns,
     });
 
     Ok(serde_json::to_string(&value)?)
@@ -1408,6 +1598,25 @@ fn emit_advisor_eval_report(
     Ok(())
 }
 
+fn emit_advisor_policy_eval_report(
+    report: &AdvisorPolicyEvalReport,
+    format: EvalOutputFormat,
+    output: Option<&PathBuf>,
+) -> Result<()> {
+    let rendered = render_advisor_policy_eval_report(report, format)?;
+    if let Some(output) = output {
+        if let Some(parent) = output.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(output, rendered)?;
+        println!("wrote advisor policy eval report: {}", output.display());
+        println!("summary: {}/{} passed", report.passed, report.total);
+    } else {
+        print!("{rendered}");
+    }
+    Ok(())
+}
+
 fn render_eval_report(report: &EvalReport, format: EvalOutputFormat) -> Result<String> {
     if matches!(format, EvalOutputFormat::Json) {
         return Ok(format!("{}\n", serde_json::to_string_pretty(report)?));
@@ -1489,6 +1698,45 @@ fn render_advisor_eval_report(
             case.actual_regime.market_risk,
             case.actual_regime.combined
         ));
+        if !case.failures.is_empty() {
+            output.push_str(&format!("  failures: {}\n", display_list(&case.failures)));
+        }
+    }
+    output.push_str(&format!(
+        "summary: {}/{} passed\n",
+        report.passed, report.total
+    ));
+    Ok(output)
+}
+
+fn render_advisor_policy_eval_report(
+    report: &AdvisorPolicyEvalReport,
+    format: EvalOutputFormat,
+) -> Result<String> {
+    if matches!(format, EvalOutputFormat::Json) {
+        return Ok(format!("{}\n", serde_json::to_string_pretty(report)?));
+    }
+
+    let mut output = String::new();
+    output.push_str("advisor policy eval\n");
+    for case in &report.cases {
+        let status = if case.passed { "PASS" } else { "FAIL" };
+        output.push_str(&format!("{status} {}\n", case.name));
+        output.push_str(&format!("  regime: {}\n", case.actual_regime));
+        let assessments = case
+            .actual_assessments
+            .iter()
+            .map(|assessment| {
+                format!(
+                    "{} {}/{}/{}",
+                    assessment.asset,
+                    assessment.stance,
+                    assessment.confidence,
+                    assessment.alignment
+                )
+            })
+            .collect::<Vec<_>>();
+        output.push_str(&format!("  assessments: {}\n", display_list(&assessments)));
         if !case.failures.is_empty() {
             output.push_str(&format!("  failures: {}\n", display_list(&case.failures)));
         }

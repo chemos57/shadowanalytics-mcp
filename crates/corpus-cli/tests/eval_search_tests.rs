@@ -193,6 +193,102 @@ fn advisor_snapshot_writes_alignment_json() {
 }
 
 #[test]
+fn advisor_policy_writes_structured_policy_json() {
+    let temp_dir =
+        std::env::temp_dir().join(format!("pozsar_advisor_policy_{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let snapshot = temp_dir.join("snapshot.json");
+    let out = temp_dir.join("policy.json");
+    std::fs::write(
+        &snapshot,
+        r#"{
+  "question": "What does collateral scarcity imply?",
+  "liquidity_signals": {
+    "question": "What does collateral scarcity imply?",
+    "macro_themes": ["collateral", "dollar_liquidity"],
+    "liquidity_conditions": [],
+    "cross_asset_implications": [
+      {
+        "asset": "BTC",
+        "bias": "risk_negative",
+        "reason": "Liquidity tightening can pressure speculative assets.",
+        "citations": ["Signal.pdf:1", "Signal.pdf:2"]
+      }
+    ],
+    "unknowns": ["Corpus evidence only"],
+    "citations": ["Signal.pdf:1"]
+  },
+  "market_context": {
+    "as_of": "2026-06-30",
+    "assets": [],
+    "cross_asset": {
+      "risk_regime": "risk_on",
+      "dxy_trend": "up",
+      "rates_proxy": "TLT_up"
+    }
+  },
+  "market_context_health": {
+    "status": "ok",
+    "as_of": "2026-06-30",
+    "missing_assets": [],
+    "stale_assets": [],
+    "warnings": [],
+    "blocking_issues": []
+  },
+  "confirmations": [
+    {
+      "asset": "BTC",
+      "macro_bias": "risk_negative",
+      "market_trend": "up",
+      "alignment": "divergent",
+      "reason": "Macro liquidity bias is risk_negative, but BTC trend is up."
+    }
+  ],
+  "regime": {
+    "macro_liquidity": "tightening",
+    "market_risk": "risk_on",
+    "combined": "macro_tightening_market_risk_on"
+  },
+  "unknowns": ["No execution recommendation"]
+}"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "advisor-policy",
+            "--snapshot",
+            snapshot.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("wrote advisor policy"));
+    assert!(stdout.contains("assessments: 1"));
+
+    let policy: serde_json::Value = serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+    assert_eq!(policy["as_of"], "2026-06-30");
+    assert_eq!(policy["regime"], "macro_tightening_market_risk_on");
+    assert_eq!(policy["asset_assessments"][0]["asset"], "BTC");
+    assert_eq!(policy["asset_assessments"][0]["stance"], "watch");
+    assert_eq!(policy["asset_assessments"][0]["confidence"], "medium");
+    assert!(policy["unknowns"]
+        .as_array()
+        .unwrap()
+        .contains(&serde_json::Value::String(
+            "No account risk limits".to_string()
+        )));
+}
+
+#[test]
 fn eval_advisor_writes_json_report() {
     let workspace = workspace_root();
     let cases = workspace
@@ -244,6 +340,61 @@ fn eval_advisor_writes_json_report() {
         "macro_tightening_market_risk_on"
     );
     assert_eq!(report["cases"][0]["failures"], serde_json::json!([]));
+}
+
+#[test]
+fn eval_advisor_policy_writes_json_report() {
+    let workspace = workspace_root();
+    let cases = workspace
+        .join("eval")
+        .join("fixtures")
+        .join("advisor_policy_eval.json");
+    let output_path = std::env::temp_dir().join(format!(
+        "pozsar_advisor_policy_eval_report_{}.json",
+        std::process::id()
+    ));
+    let outside_workspace = std::env::temp_dir().join(format!(
+        "pozsar_advisor_policy_eval_cwd_{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&outside_workspace).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .current_dir(&outside_workspace)
+        .args([
+            "eval-advisor-policy",
+            "--cases",
+            cases.to_str().unwrap(),
+            "--format",
+            "json",
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("wrote advisor policy eval report"));
+    assert!(stdout.contains("summary: 1/1 passed"));
+
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&output_path).unwrap()).unwrap();
+    assert_eq!(report["total"], 1);
+    assert_eq!(report["passed"], 1);
+    assert_eq!(report["failed"], 0);
+    assert_eq!(
+        report["cases"][0]["actual_regime"],
+        "macro_tightening_market_risk_on"
+    );
+    assert_eq!(
+        report["cases"][0]["actual_assessments"][0]["stance"],
+        "watch"
+    );
 }
 
 #[test]
