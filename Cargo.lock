@@ -328,8 +328,10 @@ version = "0.1.0"
 dependencies = [
  "advisor-core",
  "anyhow",
+ "chrono",
  "clap",
  "market-context",
+ "market-data-adapters",
  "pozsar-kb",
  "pozsar-mcp",
  "reqwest",
@@ -1153,6 +1155,17 @@ name = "market-context"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "serde",
+]
+
+[[package]]
+name = "market-data-adapters"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "market-context",
+ "reqwest",
  "serde",
 ]
 

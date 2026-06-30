@@ -121,6 +121,20 @@ date,symbol,close
 
 The output includes per-asset returns, 20-observation trend, annualized volatility, drawdown, and a deterministic cross-asset regime summary. This is local market context only; it does not produce trade recommendations.
 
+## Fetch Live Market Context
+
+Fetch live historical closes through the Yahoo-compatible CSV adapter, normalize them into `date,symbol,close`, reuse the existing market-context calculations, and write the same offline `MarketContext` JSON format:
+
+```bash
+cargo run -p corpus-cli -- fetch-market-context \
+  --provider yahoo \
+  --assets BTC,ETH,SPY,QQQ,GLD,TLT,DXY \
+  --lookback 60 \
+  --out data/market/context.json
+```
+
+The command prints a health report for freshness, missing assets, stale prices, and insufficient history. It exits nonzero if blocking health issues are found. MCP and advisor tools still consume only the generated `context.json`; they do not fetch live data directly.
+
 ## Build Advisor Snapshot
 
 Combine corpus liquidity evidence with a local market context snapshot:

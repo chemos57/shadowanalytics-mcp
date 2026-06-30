@@ -1,7 +1,12 @@
 use advisor_core::{build_advisor_snapshot, AdvisorSnapshot};
 use anyhow::{bail, Result};
+use chrono::Utc;
 use clap::{Parser, Subcommand, ValueEnum};
 use market_context::{build_market_context_from_csv, MarketContext};
+use market_data_adapters::{
+    build_market_context_from_yahoo, FetchMarketContextRequest, FetchMarketContextResult,
+    MarketDataHealthStatus,
+};
 use pozsar_kb::artifacts::{
     read_chunks_jsonl, write_chunks_jsonl, write_manifest, write_pages_jsonl,
 };
@@ -91,6 +96,18 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
+    FetchMarketContext {
+        #[arg(long, value_enum)]
+        provider: LiveMarketDataProvider,
+        #[arg(long)]
+        assets: String,
+        #[arg(long, default_value_t = 60)]
+        lookback: u32,
+        #[arg(long, default_value_t = 7)]
+        max_stale_days: i64,
+        #[arg(long)]
+        out: PathBuf,
+    },
     AdvisorSnapshot {
         #[arg(long)]
         chunks: PathBuf,
@@ -120,6 +137,11 @@ enum EvalRetrievalTool {
 enum EvalOutputFormat {
     Text,
     Json,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum LiveMarketDataProvider {
+    Yahoo,
 }
 
 fn main() -> Result<()> {
@@ -229,6 +251,31 @@ fn main() -> Result<()> {
             println!("assets: {}", context.assets.len());
             println!("risk_regime: {}", context.cross_asset.risk_regime);
         }
+        Command::FetchMarketContext {
+            provider,
+            assets,
+            lookback,
+            max_stale_days,
+            out,
+        } => {
+            let assets = parse_csv_arg(&assets);
+            let request = FetchMarketContextRequest {
+                assets,
+                lookback_days: lookback,
+            };
+            let result = match provider {
+                LiveMarketDataProvider::Yahoo => {
+                    build_market_context_from_yahoo(&request, max_stale_days.max(0))?
+                }
+            };
+            let today = Utc::now().date_naive();
+            persist_valid_fetched_market_context(
+                &result,
+                &out,
+                live_market_provider_name(provider),
+                &today.to_string(),
+            )?;
+        }
         Command::AdvisorSnapshot {
             chunks,
             market_context,
@@ -264,6 +311,40 @@ fn main() -> Result<()> {
             println!("combined: {}", snapshot.regime.combined);
         }
     }
+    Ok(())
+}
+
+fn live_market_provider_name(provider: LiveMarketDataProvider) -> &'static str {
+    match provider {
+        LiveMarketDataProvider::Yahoo => "yahoo",
+    }
+}
+
+fn persist_valid_fetched_market_context(
+    result: &FetchMarketContextResult,
+    out: &Path,
+    provider_name: &str,
+    today: &str,
+) -> Result<()> {
+    println!("provider: {provider_name}");
+    println!("as_of: {}", result.context.as_of);
+    println!("assets: {}", result.context.assets.len());
+    println!("risk_regime: {}", result.context.cross_asset.risk_regime);
+    println!("health: {}", serde_json::to_string_pretty(&result.health)?);
+    if result.health.status == MarketDataHealthStatus::Invalid {
+        bail!("market context health invalid");
+    }
+    if result.context.as_of.as_str() > today {
+        bail!("market context as_of is in the future");
+    }
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        out,
+        format!("{}\n", serde_json::to_string_pretty(&result.context)?),
+    )?;
+    println!("wrote market context: {}", out.display());
     Ok(())
 }
 
@@ -1433,4 +1514,59 @@ fn display_expected_ranks(ranks: &[ExpectedCitationRank]) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use market_context::{AssetContext, CrossAssetContext};
+    use market_data_adapters::{FetchMarketContextResult, MarketDataHealth};
+
+    #[test]
+    fn invalid_fetched_market_context_does_not_overwrite_existing_file() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "pozsar_invalid_fetch_persist_{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let out = temp_dir.join("context.json");
+        std::fs::write(&out, "previous valid context").unwrap();
+        let result = FetchMarketContextResult {
+            context: MarketContext {
+                as_of: "2026-06-21".to_string(),
+                assets: vec![AssetContext {
+                    symbol: "BTC".to_string(),
+                    last_close: 100.0,
+                    return_1d: Some(0.01),
+                    return_5d: Some(0.02),
+                    return_20d: Some(0.05),
+                    trend_20d: "up".to_string(),
+                    volatility_20d: Some(0.2),
+                    drawdown_20d: Some(0.0),
+                }],
+                cross_asset: CrossAssetContext {
+                    risk_regime: "risk_on".to_string(),
+                    dxy_trend: "unknown".to_string(),
+                    rates_proxy: "unknown".to_string(),
+                },
+            },
+            health: MarketDataHealth {
+                status: MarketDataHealthStatus::Invalid,
+                as_of: "2026-06-21".to_string(),
+                missing_assets: vec!["DXY".to_string()],
+                stale_assets: vec![],
+                warnings: vec![],
+                blocking_issues: vec!["missing assets: DXY".to_string()],
+            },
+        };
+
+        let error =
+            persist_valid_fetched_market_context(&result, &out, "yahoo", "2026-06-30").unwrap_err();
+
+        assert!(error.to_string().contains("market context health invalid"));
+        assert_eq!(
+            std::fs::read_to_string(&out).unwrap(),
+            "previous valid context"
+        );
+    }
 }
