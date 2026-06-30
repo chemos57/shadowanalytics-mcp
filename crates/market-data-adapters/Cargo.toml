@@ -1,0 +1,12 @@
+[package]
+name = "market-data-adapters"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+market-context = { path = "../market-context" }
+reqwest.workspace = true
+serde.workspace = true

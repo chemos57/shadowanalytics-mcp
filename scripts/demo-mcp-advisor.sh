@@ -21,6 +21,7 @@ fi
 if [[ ! -f "$MARKET_CONTEXT_JSON" ]]; then
   echo "market context not found: $MARKET_CONTEXT_JSON" >&2
   echo "Build it with: cargo run -p corpus-cli -- market-context --prices data/market/sample_prices.csv --out data/market/context.json" >&2
+  echo "Or fetch it with: cargo run -p corpus-cli -- fetch-market-context --provider yahoo --assets BTC,ETH,SPY,QQQ,GLD,TLT,DXY --lookback 60 --out data/market/context.json" >&2
   exit 1
 fi
 

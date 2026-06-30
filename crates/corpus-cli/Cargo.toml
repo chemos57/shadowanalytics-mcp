@@ -11,7 +11,9 @@ path = "src/main.rs"
 [dependencies]
 advisor-core = { path = "../advisor-core" }
 anyhow.workspace = true
+chrono.workspace = true
 clap.workspace = true
+market-data-adapters = { path = "../market-data-adapters" }
 market-context = { path = "../market-context" }
 pozsar-kb = { path = "../pozsar-kb" }
 pozsar-mcp = { path = "../pozsar-mcp" }
