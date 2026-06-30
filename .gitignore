@@ -1,6 +1,7 @@
 /target/
 /dist/
 /data/knowledge/
+/data/market/*.json
 /dev_docs/
 /eval/*.json
 /eval/local/

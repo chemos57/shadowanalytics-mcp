@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+use market_context::build_market_context_from_csv;
 use pozsar_kb::artifacts::{
     read_chunks_jsonl, write_chunks_jsonl, write_manifest, write_pages_jsonl,
 };
@@ -73,6 +74,12 @@ enum Command {
         source_map: PathBuf,
         #[arg(long, default_value_t = false)]
         overwrite: bool,
+    },
+    MarketContext {
+        #[arg(long)]
+        prices: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
     },
 }
 
@@ -165,6 +172,20 @@ fn main() -> Result<()> {
             if report.has_failures() {
                 bail!("source download failed");
             }
+        }
+        Command::MarketContext { prices, out } => {
+            let context = build_market_context_from_csv(&prices)?;
+            if let Some(parent) = out.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(
+                &out,
+                format!("{}\n", serde_json::to_string_pretty(&context)?),
+            )?;
+            println!("wrote market context: {}", out.display());
+            println!("as_of: {}", context.as_of);
+            println!("assets: {}", context.assets.len());
+            println!("risk_regime: {}", context.cross_asset.risk_regime);
         }
     }
     Ok(())
