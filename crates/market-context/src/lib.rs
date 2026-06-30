@@ -37,6 +37,24 @@ pub struct CrossAssetContext {
     pub rates_proxy: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MarketDataHealthStatus {
+    Ok,
+    Warning,
+    Invalid,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarketDataHealth {
+    pub status: MarketDataHealthStatus,
+    pub as_of: String,
+    pub missing_assets: Vec<String>,
+    pub stale_assets: Vec<String>,
+    pub warnings: Vec<String>,
+    pub blocking_issues: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 struct PricePoint {
     date: String,

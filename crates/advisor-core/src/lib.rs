@@ -1,5 +1,6 @@
-use market_context::MarketContext;
+use market_context::{MarketContext, MarketDataHealth};
 use serde::Serialize;
+use thiserror::Error;
 
 #[derive(Debug, Serialize)]
 pub struct LiquiditySignalBundle {
@@ -42,6 +43,8 @@ pub struct AdvisorSnapshot {
     pub question: String,
     pub liquidity_signals: LiquiditySignalBundle,
     pub market_context: MarketContext,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub market_context_health: Option<MarketDataHealth>,
     pub confirmations: Vec<AdvisorConfirmation>,
     pub regime: AdvisorRegime,
     pub unknowns: Vec<String>,
@@ -63,10 +66,45 @@ pub struct AdvisorRegime {
     pub combined: String,
 }
 
+#[derive(Debug, Error)]
+pub enum AdvisorSnapshotError {
+    #[error(
+        "market context health as_of {health_as_of} does not match market context as_of {market_context_as_of}"
+    )]
+    MarketContextHealthAsOfMismatch {
+        market_context_as_of: String,
+        health_as_of: String,
+    },
+}
+
 pub fn build_advisor_snapshot(
     question: String,
     liquidity_signals: LiquiditySignalBundle,
     market_context: MarketContext,
+) -> AdvisorSnapshot {
+    build_advisor_snapshot_unchecked(question, liquidity_signals, market_context, None)
+}
+
+pub fn build_advisor_snapshot_with_health(
+    question: String,
+    liquidity_signals: LiquiditySignalBundle,
+    market_context: MarketContext,
+    market_context_health: Option<MarketDataHealth>,
+) -> Result<AdvisorSnapshot, AdvisorSnapshotError> {
+    validate_market_context_health(&market_context, market_context_health.as_ref())?;
+    Ok(build_advisor_snapshot_unchecked(
+        question,
+        liquidity_signals,
+        market_context,
+        market_context_health,
+    ))
+}
+
+fn build_advisor_snapshot_unchecked(
+    question: String,
+    liquidity_signals: LiquiditySignalBundle,
+    market_context: MarketContext,
+    market_context_health: Option<MarketDataHealth>,
 ) -> AdvisorSnapshot {
     let confirmations = confirmations(&liquidity_signals, &market_context);
     let regime = advisor_regime(&liquidity_signals, &market_context);
@@ -83,10 +121,26 @@ pub fn build_advisor_snapshot(
         question,
         liquidity_signals,
         market_context,
+        market_context_health,
         confirmations,
         regime,
         unknowns,
     }
+}
+
+fn validate_market_context_health(
+    market_context: &MarketContext,
+    market_context_health: Option<&MarketDataHealth>,
+) -> Result<(), AdvisorSnapshotError> {
+    if let Some(health) = market_context_health {
+        if health.as_of != market_context.as_of {
+            return Err(AdvisorSnapshotError::MarketContextHealthAsOfMismatch {
+                market_context_as_of: market_context.as_of.clone(),
+                health_as_of: health.as_of.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn confirmations(
@@ -227,7 +281,9 @@ enum ExpectedTrend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use market_context::{AssetContext, CrossAssetContext};
+    use market_context::{
+        AssetContext, CrossAssetContext, MarketDataHealth, MarketDataHealthStatus,
+    };
 
     #[test]
     fn builds_advisor_snapshot_with_alignment_and_regime() {
@@ -296,6 +352,89 @@ mod tests {
         assert!(snapshot
             .unknowns
             .contains(&"No execution recommendation".to_string()));
+    }
+
+    #[test]
+    fn advisor_snapshot_can_include_market_context_health() {
+        let signals = LiquiditySignalBundle {
+            question: "What does collateral scarcity imply?".to_string(),
+            macro_themes: vec!["collateral".to_string()],
+            liquidity_conditions: Vec::new(),
+            cross_asset_implications: Vec::new(),
+            unknowns: Vec::new(),
+            citations: Vec::new(),
+        };
+        let market_context = MarketContext {
+            as_of: "2026-06-30".to_string(),
+            assets: vec![asset("BTC", "up")],
+            cross_asset: CrossAssetContext {
+                risk_regime: "risk_on".to_string(),
+                dxy_trend: "up".to_string(),
+                rates_proxy: "TLT_up".to_string(),
+            },
+        };
+        let health = MarketDataHealth {
+            status: MarketDataHealthStatus::Ok,
+            as_of: "2026-06-30".to_string(),
+            missing_assets: Vec::new(),
+            stale_assets: Vec::new(),
+            warnings: Vec::new(),
+            blocking_issues: Vec::new(),
+        };
+
+        let snapshot = build_advisor_snapshot_with_health(
+            "What does collateral scarcity imply?".to_string(),
+            signals,
+            market_context,
+            Some(health),
+        )
+        .unwrap();
+
+        assert_eq!(
+            snapshot.market_context_health.as_ref().unwrap().status,
+            MarketDataHealthStatus::Ok
+        );
+    }
+
+    #[test]
+    fn advisor_snapshot_rejects_mismatched_market_context_health_as_of() {
+        let signals = LiquiditySignalBundle {
+            question: "What does collateral scarcity imply?".to_string(),
+            macro_themes: vec!["collateral".to_string()],
+            liquidity_conditions: Vec::new(),
+            cross_asset_implications: Vec::new(),
+            unknowns: Vec::new(),
+            citations: Vec::new(),
+        };
+        let market_context = MarketContext {
+            as_of: "2026-06-30".to_string(),
+            assets: vec![asset("BTC", "up")],
+            cross_asset: CrossAssetContext {
+                risk_regime: "risk_on".to_string(),
+                dxy_trend: "up".to_string(),
+                rates_proxy: "TLT_up".to_string(),
+            },
+        };
+        let health = MarketDataHealth {
+            status: MarketDataHealthStatus::Ok,
+            as_of: "2026-06-29".to_string(),
+            missing_assets: Vec::new(),
+            stale_assets: Vec::new(),
+            warnings: Vec::new(),
+            blocking_issues: Vec::new(),
+        };
+
+        let error = build_advisor_snapshot_with_health(
+            "What does collateral scarcity imply?".to_string(),
+            signals,
+            market_context,
+            Some(health),
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains(
+            "market context health as_of 2026-06-29 does not match market context as_of 2026-06-30"
+        ));
     }
 
     fn asset(symbol: &str, trend_20d: &str) -> AssetContext {

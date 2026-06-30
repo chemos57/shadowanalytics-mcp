@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "market-context",
  "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

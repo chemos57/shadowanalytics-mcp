@@ -1,8 +1,8 @@
-use advisor_core::{build_advisor_snapshot, AdvisorSnapshot};
+use advisor_core::{build_advisor_snapshot, build_advisor_snapshot_with_health, AdvisorSnapshot};
 use anyhow::{bail, Result};
 use chrono::Utc;
 use clap::{Parser, Subcommand, ValueEnum};
-use market_context::{build_market_context_from_csv, MarketContext};
+use market_context::{build_market_context_from_csv, MarketContext, MarketDataHealth};
 use market_data_adapters::{
     build_market_context_from_yahoo, FetchMarketContextRequest, FetchMarketContextResult,
     MarketDataHealthStatus,
@@ -113,6 +113,8 @@ enum Command {
         chunks: PathBuf,
         #[arg(long)]
         market_context: PathBuf,
+        #[arg(long)]
+        market_health: Option<PathBuf>,
         #[arg(long)]
         question: String,
         #[arg(long)]
@@ -279,6 +281,7 @@ fn main() -> Result<()> {
         Command::AdvisorSnapshot {
             chunks,
             market_context,
+            market_health,
             question,
             assets,
             themes,
@@ -288,6 +291,10 @@ fn main() -> Result<()> {
             let chunks = read_chunks_jsonl(&chunks)?;
             let market_context_json = fs::read_to_string(&market_context)?;
             let market_context: MarketContext = serde_json::from_str(&market_context_json)?;
+            let market_context_health = market_health
+                .as_deref()
+                .map(load_market_data_health_json)
+                .transpose()?;
             let liquidity_signals = extract_liquidity_signals(
                 &chunks,
                 LiquiditySignalParams {
@@ -297,7 +304,12 @@ fn main() -> Result<()> {
                     limit: Some(limit),
                 },
             );
-            let snapshot = build_advisor_snapshot(question, liquidity_signals, market_context);
+            let snapshot = build_advisor_snapshot_with_health(
+                question,
+                liquidity_signals,
+                market_context,
+                market_context_health,
+            )?;
             if let Some(parent) = out.parent() {
                 fs::create_dir_all(parent)?;
             }
@@ -337,6 +349,7 @@ fn persist_valid_fetched_market_context(
     if result.context.as_of.as_str() > today {
         bail!("market context as_of is in the future");
     }
+    let health_out = market_health_sidecar_path(out);
     if let Some(parent) = out.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -344,8 +357,26 @@ fn persist_valid_fetched_market_context(
         out,
         format!("{}\n", serde_json::to_string_pretty(&result.context)?),
     )?;
+    fs::write(
+        &health_out,
+        format!("{}\n", serde_json::to_string_pretty(&result.health)?),
+    )?;
     println!("wrote market context: {}", out.display());
+    println!("wrote market context health: {}", health_out.display());
     Ok(())
+}
+
+fn load_market_data_health_json(path: &Path) -> Result<MarketDataHealth> {
+    let json = fs::read_to_string(path)?;
+    Ok(serde_json::from_str(&json)?)
+}
+
+fn market_health_sidecar_path(context_path: &Path) -> PathBuf {
+    let file_name = context_path
+        .file_stem()
+        .map(|stem| format!("{}.health.json", stem.to_string_lossy()))
+        .unwrap_or_else(|| "context.health.json".to_string());
+    context_path.with_file_name(file_name)
 }
 
 fn parse_csv_arg(value: &str) -> Vec<String> {
@@ -1568,5 +1599,51 @@ mod tests {
             std::fs::read_to_string(&out).unwrap(),
             "previous valid context"
         );
+    }
+
+    #[test]
+    fn valid_fetched_market_context_writes_context_and_health_sidecar() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("pozsar_valid_fetch_persist_{}", std::process::id()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let out = temp_dir.join("context.json");
+        let result = FetchMarketContextResult {
+            context: MarketContext {
+                as_of: "2026-06-30".to_string(),
+                assets: vec![AssetContext {
+                    symbol: "BTC".to_string(),
+                    last_close: 100.0,
+                    return_1d: Some(0.01),
+                    return_5d: Some(0.02),
+                    return_20d: Some(0.05),
+                    trend_20d: "up".to_string(),
+                    volatility_20d: Some(0.2),
+                    drawdown_20d: Some(0.0),
+                }],
+                cross_asset: CrossAssetContext {
+                    risk_regime: "risk_on".to_string(),
+                    dxy_trend: "up".to_string(),
+                    rates_proxy: "TLT_up".to_string(),
+                },
+            },
+            health: MarketDataHealth {
+                status: MarketDataHealthStatus::Ok,
+                as_of: "2026-06-30".to_string(),
+                missing_assets: Vec::new(),
+                stale_assets: Vec::new(),
+                warnings: Vec::new(),
+                blocking_issues: Vec::new(),
+            },
+        };
+
+        persist_valid_fetched_market_context(&result, &out, "yahoo", "2026-06-30").unwrap();
+
+        let context: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+        let health: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(temp_dir.join("context.health.json")).unwrap())
+                .unwrap();
+        assert_eq!(context["as_of"], "2026-06-30");
+        assert_eq!(health["status"], "ok");
     }
 }

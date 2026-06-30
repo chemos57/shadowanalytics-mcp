@@ -89,6 +89,7 @@ fn advisor_snapshot_writes_alignment_json() {
         std::env::temp_dir().join(format!("pozsar_advisor_snapshot_{}", std::process::id()));
     std::fs::create_dir_all(&temp_dir).unwrap();
     let market_context = temp_dir.join("market_context.json");
+    let market_health = temp_dir.join("market_context.health.json");
     let out = temp_dir.join("snapshot.json");
     std::fs::write(
         &market_context,
@@ -124,6 +125,18 @@ fn advisor_snapshot_writes_alignment_json() {
 }"#,
     )
     .unwrap();
+    std::fs::write(
+        &market_health,
+        r#"{
+  "status": "ok",
+  "as_of": "2026-06-30",
+  "missing_assets": [],
+  "stale_assets": [],
+  "warnings": [],
+  "blocking_issues": []
+}"#,
+    )
+    .unwrap();
 
     let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
         .args([
@@ -132,6 +145,8 @@ fn advisor_snapshot_writes_alignment_json() {
             chunks.to_str().unwrap(),
             "--market-context",
             market_context.to_str().unwrap(),
+            "--market-health",
+            market_health.to_str().unwrap(),
             "--question",
             "What does collateral scarcity imply for cross-asset liquidity?",
             "--assets",
@@ -159,6 +174,8 @@ fn advisor_snapshot_writes_alignment_json() {
         snapshot["regime"]["combined"],
         "macro_tightening_market_risk_on"
     );
+    assert_eq!(snapshot["market_context_health"]["status"], "ok");
+    assert_eq!(snapshot["market_context_health"]["as_of"], "2026-06-30");
     assert!(snapshot["confirmations"]
         .as_array()
         .unwrap()
