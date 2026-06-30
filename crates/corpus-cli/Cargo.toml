@@ -9,6 +9,7 @@ name = "corpus"
 path = "src/main.rs"
 
 [dependencies]
+advisor-core = { path = "../advisor-core" }
 anyhow.workspace = true
 clap.workspace = true
 market-context = { path = "../market-context" }

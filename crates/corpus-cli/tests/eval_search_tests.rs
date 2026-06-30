@@ -77,6 +77,105 @@ fn market_context_rejects_non_finite_prices() {
 }
 
 #[test]
+fn advisor_snapshot_writes_alignment_json() {
+    let workspace = workspace_root();
+    let chunks = workspace
+        .join("crates")
+        .join("pozsar-mcp")
+        .join("tests")
+        .join("fixtures")
+        .join("pozsar_chunks.jsonl");
+    let temp_dir =
+        std::env::temp_dir().join(format!("pozsar_advisor_snapshot_{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let market_context = temp_dir.join("market_context.json");
+    let out = temp_dir.join("snapshot.json");
+    std::fs::write(
+        &market_context,
+        r#"{
+  "as_of": "2026-06-30",
+  "assets": [
+    {
+      "symbol": "BTC",
+      "last_close": 100.0,
+      "return_1d": 0.01,
+      "return_5d": 0.02,
+      "return_20d": 0.05,
+      "trend_20d": "up",
+      "volatility_20d": 0.2,
+      "drawdown_20d": 0.0
+    },
+    {
+      "symbol": "DXY",
+      "last_close": 105.0,
+      "return_1d": 0.01,
+      "return_5d": 0.02,
+      "return_20d": 0.04,
+      "trend_20d": "up",
+      "volatility_20d": 0.1,
+      "drawdown_20d": 0.0
+    }
+  ],
+  "cross_asset": {
+    "risk_regime": "risk_on",
+    "dxy_trend": "up",
+    "rates_proxy": "TLT_up"
+  }
+}"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "advisor-snapshot",
+            "--chunks",
+            chunks.to_str().unwrap(),
+            "--market-context",
+            market_context.to_str().unwrap(),
+            "--question",
+            "What does collateral scarcity imply for cross-asset liquidity?",
+            "--assets",
+            "BTC,DXY",
+            "--themes",
+            "collateral,dollar_liquidity",
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("wrote advisor snapshot"));
+    assert!(stdout.contains("combined: macro_tightening_market_risk_on"));
+
+    let snapshot: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&out).unwrap()).unwrap();
+    assert_eq!(
+        snapshot["regime"]["combined"],
+        "macro_tightening_market_risk_on"
+    );
+    assert!(snapshot["confirmations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|confirmation| confirmation["asset"] == "BTC"
+            && confirmation["macro_bias"] == "risk_negative"
+            && confirmation["market_trend"] == "up"
+            && confirmation["alignment"] == "divergent"));
+    assert!(snapshot["unknowns"]
+        .as_array()
+        .unwrap()
+        .contains(&serde_json::Value::String(
+            "No execution recommendation".to_string()
+        )));
+}
+
+#[test]
 fn eval_search_reports_passes_and_summary() {
     let workspace = workspace_root();
     let chunks = workspace

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/advisor-core",
     "crates/pozsar-kb",
     "crates/corpus-cli",
     "crates/market-context",

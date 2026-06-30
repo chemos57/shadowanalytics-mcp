@@ -1,0 +1,10 @@
+[package]
+name = "advisor-core"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+market-context = { path = "../market-context" }
+pozsar-mcp = { path = "../pozsar-mcp" }
+serde.workspace = true
