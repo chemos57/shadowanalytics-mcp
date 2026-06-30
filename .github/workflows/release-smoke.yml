@@ -1,0 +1,54 @@
+name: Release Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-smoke:
+    name: Release smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: true
+
+      - name: Download PDF sources
+        run: cargo run -p corpus-cli -- download-sources --docs docs --source-map docs/SOURCE_MAP.md
+
+      - name: Verify PDF provenance
+        run: |
+          cargo run -p corpus-cli -- verify-sources \
+            --docs docs \
+            --bibliography Zoltan-Pozsar-Bibliography.html \
+            --source-map docs/SOURCE_MAP.md
+
+      - name: Build corpus
+        run: cargo run -p corpus-cli -- build --docs docs --out data/knowledge
+
+      - name: Inspect corpus
+        run: cargo run -p corpus-cli -- inspect --out data/knowledge
+
+      - name: Package release
+        run: scripts/package-release.sh
+
+      - name: Smoke-test package
+        run: |
+          archive="$(find dist -maxdepth 1 -type f -name 'pozsar-corpus-mcp-*.tar.gz' | sort | tail -n 1)"
+          if [ -z "$archive" ]; then
+            echo "release archive not found" >&2
+            exit 1
+          fi
+          scripts/smoke-package.sh "$archive" data/knowledge/chunks/pozsar_chunks.jsonl
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pozsar-corpus-mcp-release-package
+          path: dist/pozsar-corpus-mcp-*.tar.gz
+          if-no-files-found: error
