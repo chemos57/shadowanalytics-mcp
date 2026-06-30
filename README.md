@@ -161,6 +161,7 @@ Available MCP tools:
 - `read_pozsar_source`
 - `read_pozsar_page_context`
 - `answer_pozsar_research_question`
+- `extract_pozsar_liquidity_signals`
 
 Search results include citations in `file_name:page` format.
 
