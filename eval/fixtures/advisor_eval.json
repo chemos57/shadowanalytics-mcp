@@ -1,0 +1,24 @@
+[
+  {
+    "name": "tight liquidity with risk-on market divergence",
+    "question": "What does collateral scarcity imply for cross-asset liquidity?",
+    "chunks": "../../crates/pozsar-mcp/tests/fixtures/pozsar_chunks.jsonl",
+    "market_context": "market_context_risk_on.json",
+    "assets": ["BTC", "DXY"],
+    "themes": ["collateral", "dollar_liquidity"],
+    "expected": {
+      "macro_liquidity": "tightening",
+      "market_risk": "risk_on",
+      "combined": "macro_tightening_market_risk_on",
+      "confirmations": [
+        {
+          "asset": "BTC",
+          "macro_bias": "risk_negative",
+          "market_trend": "up",
+          "alignment": "divergent"
+        }
+      ],
+      "forbidden_terms": ["buy", "sell", "short", "leverage"]
+    }
+  }
+]

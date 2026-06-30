@@ -176,6 +176,136 @@ fn advisor_snapshot_writes_alignment_json() {
 }
 
 #[test]
+fn eval_advisor_writes_json_report() {
+    let workspace = workspace_root();
+    let cases = workspace
+        .join("eval")
+        .join("fixtures")
+        .join("advisor_eval.json");
+    let output_path = std::env::temp_dir().join(format!(
+        "pozsar_advisor_eval_report_{}.json",
+        std::process::id()
+    ));
+    let outside_workspace =
+        std::env::temp_dir().join(format!("pozsar_advisor_eval_cwd_{}", std::process::id()));
+    std::fs::create_dir_all(&outside_workspace).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .current_dir(&outside_workspace)
+        .args([
+            "eval-advisor",
+            "--cases",
+            cases.to_str().unwrap(),
+            "--format",
+            "json",
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("wrote advisor eval report"));
+    assert!(stdout.contains("summary: 1/1 passed"));
+
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&output_path).unwrap()).unwrap();
+    assert_eq!(report["total"], 1);
+    assert_eq!(report["passed"], 1);
+    assert_eq!(report["failed"], 0);
+    assert_eq!(
+        report["cases"][0]["name"],
+        "tight liquidity with risk-on market divergence"
+    );
+    assert_eq!(
+        report["cases"][0]["actual_regime"]["combined"],
+        "macro_tightening_market_risk_on"
+    );
+    assert_eq!(report["cases"][0]["failures"], serde_json::json!([]));
+}
+
+#[test]
+fn eval_advisor_ignores_forbidden_terms_in_question() {
+    let workspace = workspace_root();
+    let chunks = workspace
+        .join("crates")
+        .join("pozsar-mcp")
+        .join("tests")
+        .join("fixtures")
+        .join("pozsar_chunks.jsonl");
+    let market_context = workspace
+        .join("eval")
+        .join("fixtures")
+        .join("market_context_risk_on.json");
+    let temp_dir = std::env::temp_dir().join(format!(
+        "pozsar_advisor_eval_forbidden_question_{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let cases = temp_dir.join("advisor_eval.json");
+    let output_path = temp_dir.join("advisor_report.json");
+    std::fs::write(
+        &cases,
+        format!(
+            r#"[{{
+  "name": "question contains forbidden term",
+  "question": "Should I buy BTC when collateral scarcity tightens liquidity?",
+  "chunks": "{}",
+  "market_context": "{}",
+  "assets": ["BTC", "DXY"],
+  "themes": ["collateral", "dollar_liquidity"],
+  "expected": {{
+    "macro_liquidity": "tightening",
+    "market_risk": "risk_on",
+    "combined": "macro_tightening_market_risk_on",
+    "confirmations": [
+      {{
+        "asset": "BTC",
+        "macro_bias": "risk_negative",
+        "market_trend": "up",
+        "alignment": "divergent"
+      }}
+    ],
+    "forbidden_terms": ["buy", "sell", "short", "leverage"]
+  }}
+}}]"#,
+            chunks.display(),
+            market_context.display()
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_corpus"))
+        .args([
+            "eval-advisor",
+            "--cases",
+            cases.to_str().unwrap(),
+            "--format",
+            "json",
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&output_path).unwrap()).unwrap();
+    assert_eq!(report["passed"], 1);
+    assert_eq!(report["cases"][0]["failures"], serde_json::json!([]));
+}
+
+#[test]
 fn eval_search_reports_passes_and_summary() {
     let workspace = workspace_root();
     let chunks = workspace
